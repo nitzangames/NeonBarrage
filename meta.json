@@ -1,0 +1,8 @@
+{
+  "slug": "neon-barrage",
+  "title": "Neon Barrage",
+  "description": "A brick breaker where you aim and launch volleys of balls to destroy descending blocks.",
+  "tags": ["arcade", "brick-breaker", "casual"],
+  "author": "Nitzan Wilnai",
+  "thumbnail": "thumbnail.png"
+}
