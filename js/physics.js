@@ -25,6 +25,7 @@ const Physics = {
       ballTrailY[i][0] = ballY[i];
 
       for (let s = 0; s < steps; s++) {
+        this.lastHitBlock[i] = -1;
         const speed = Math.sqrt(ballVX[i] * ballVX[i] + ballVY[i] * ballVY[i]);
         if (speed < 0.001) { ballActive[i] = 0; break; }
 

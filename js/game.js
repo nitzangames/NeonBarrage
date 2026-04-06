@@ -159,7 +159,7 @@ const LevelSelect = {
     ctx.fillStyle = rgb(COL.textDim);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${totalStars} / ${maxStars} \u2605`, canvasW / 2, barY + barH + canvasH * 0.025);
+    ctx.fillText(`STARS COLLECTED: ${totalStars}/180`, canvasW / 2, barY + barH + canvasH * 0.025);
 
     // Back button
     const backW = canvasW * 0.2;
@@ -202,7 +202,7 @@ const Game = {
   turnEndTimer: 0,
 
   // --- Button Helper ---
-  drawButton(text, x, y, w, h, color, fontSize) {
+  drawButton(text, x, y, w, h, color, fontSize, disabled) {
     color = color || COL.green;
     fontSize = fontSize || h * 0.5;
 
@@ -414,13 +414,16 @@ const Game = {
     ctx.fillStyle = rgb(COL.green);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.shadowColor = rgb(COL.green, 0.6);
+    ctx.shadowBlur = 20;
     ctx.fillText('NEON', canvasW / 2, canvasH * 0.28);
     ctx.fillText('BARRAGE', canvasW / 2, canvasH * 0.28 + titleSize * 1.2);
+    ctx.shadowBlur = 0;
 
     // Subtitle
     ctx.font = `bold ${canvasW * 0.035}px ${FONT_BODY}`;
     ctx.fillStyle = rgb(COL.textDim);
-    ctx.fillText('BLOCK BREAKER', canvasW / 2, canvasH * 0.28 + titleSize * 2.5);
+    ctx.fillText('BREAK THE GRID', canvasW / 2, canvasH * 0.28 + titleSize * 2.5);
 
     // Play button
     const btnW = canvasW * 0.55;
@@ -452,6 +455,10 @@ const Game = {
         return;
       }
     }
+
+    // Shop button (disabled)
+    const shopY = lsY + btnH * 1.6;
+    this.drawButton('SHOP', btnX, shopY, btnW, btnH, COL.textDim, undefined, true);
 
     // Best score
     if (saveData.bestScore > 0) {
@@ -554,6 +561,11 @@ const Game = {
     ctx.textBaseline = 'middle';
     ctx.fillText('GAME OVER', canvasW / 2, centerY);
 
+    // Subtitle
+    ctx.font = `bold ${canvasW * 0.04}px ${FONT_BODY}`;
+    ctx.fillStyle = rgb(COL.textDim);
+    ctx.fillText('Mission Failed', canvasW / 2, centerY + canvasH * 0.045);
+
     // Score
     ctx.font = `bold ${canvasW * 0.05}px ${FONT_BODY}`;
     ctx.fillStyle = rgb(COL.textWhite);
@@ -569,7 +581,7 @@ const Game = {
     const btnH = canvasH * 0.065;
     const btnX = (canvasW - btnW) / 2;
     const retryY = canvasH * 0.58;
-    this.drawButton('RETRY', btnX, retryY, btnW, btnH, COL.orange);
+    this.drawButton('RETRY', btnX, retryY, btnW, btnH, COL.green);
 
     if (Input.tapped || Input.aimReleased) {
       if (Input.hitTestRect(btnX, retryY, btnW, btnH)) {
@@ -580,15 +592,16 @@ const Game = {
       }
     }
 
-    // Menu button
-    const menuY = retryY + btnH * 1.6;
-    this.drawButton('MENU', btnX, menuY, btnW, btnH, COL.textDim);
+    // Levels button
+    const levelsY = retryY + btnH * 1.6;
+    this.drawButton('LEVELS', btnX, levelsY, btnW, btnH, COL.blue);
 
     if (Input.tapped || Input.aimReleased) {
-      if (Input.hitTestRect(btnX, menuY, btnW, btnH)) {
+      if (Input.hitTestRect(btnX, levelsY, btnW, btnH)) {
         Input.consumeTap();
         Input.consumeRelease();
-        this.state = STATE.MENU;
+        Game.state = STATE.LEVEL_SELECT;
+        LevelSelect.scrollY = 0;
         return;
       }
     }
@@ -653,9 +666,9 @@ const Game = {
       }
     }
 
-    // Retry button
+    // Replay button
     const retryY = nextY + btnH * 1.6;
-    this.drawButton('RETRY', btnX, retryY, btnW, btnH, COL.orange);
+    this.drawButton('REPLAY', btnX, retryY, btnW, btnH, COL.blue);
 
     if (Input.tapped || Input.aimReleased) {
       if (Input.hitTestRect(btnX, retryY, btnW, btnH)) {
