@@ -31,6 +31,39 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
+// --- Init ---
+loadProgress();
+Input.init();
+
+// Mouse wheel for level select
+canvas.addEventListener('wheel', (e) => {
+  if (Game.state === STATE.LEVEL_SELECT) {
+    LevelSelect.handleScroll(e);
+    e.preventDefault();
+  }
+}, { passive: false });
+
+// Touch scroll for level select
+canvas.addEventListener('touchstart', (e) => {
+  if (Game.state === STATE.LEVEL_SELECT) {
+    LevelSelect.isDragging = true;
+    LevelSelect.touchStartY = e.touches[0].clientY;
+    LevelSelect.lastTouchY = e.touches[0].clientY;
+  }
+});
+canvas.addEventListener('touchmove', (e) => {
+  if (Game.state === STATE.LEVEL_SELECT && LevelSelect.isDragging) {
+    const y = e.touches[0].clientY;
+    const dy = LevelSelect.lastTouchY - y;
+    LevelSelect.scrollY += dy;
+    LevelSelect.scrollVel = dy / 0.016;
+    LevelSelect.lastTouchY = y;
+  }
+});
+canvas.addEventListener('touchend', () => {
+  LevelSelect.isDragging = false;
+});
+
 // --- Game Loop ---
 let lastTime = 0;
 
@@ -38,12 +71,18 @@ function gameLoop(timestamp) {
   const dt = Math.min((timestamp - lastTime) / 1000, MAX_DT);
   lastTime = timestamp;
 
-  // Clear
-  ctx.fillStyle = rgb(COL.bgDark);
-  ctx.fillRect(0, 0, canvasW, canvasH);
+  if (Game.state === STATE.LEVEL_SELECT) {
+    LevelSelect.update(dt);
+  }
+
+  Game.update(dt);
+  Game.render();
 
   requestAnimationFrame(gameLoop);
 }
+
+// Start
+Game.state = STATE.MENU;
 
 requestAnimationFrame(function(timestamp) {
   lastTime = timestamp;
