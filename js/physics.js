@@ -1,6 +1,7 @@
 const Physics = {
   // Track last-hit block per ball to prevent double-damage in same sub-step
   lastHitBlock: new Int32Array(MAX_BALLS),
+  wallBounceCount: 0,
 
   resetLastHit() {
     this.lastHitBlock.fill(-1);
@@ -38,9 +39,13 @@ const Physics = {
         if (ballX[i] - BALL_RADIUS < 0) {
           ballX[i] = BALL_RADIUS;
           ballVX[i] = Math.abs(ballVX[i]);
+          this.wallBounceCount++;
+          if (this.wallBounceCount % 3 === 0) Audio.wallBounce();
         } else if (ballX[i] + BALL_RADIUS > FIELD_WIDTH) {
           ballX[i] = FIELD_WIDTH - BALL_RADIUS;
           ballVX[i] = -Math.abs(ballVX[i]);
+          this.wallBounceCount++;
+          if (this.wallBounceCount % 3 === 0) Audio.wallBounce();
         }
 
         // Ceiling collision
@@ -98,6 +103,8 @@ const Physics = {
         if (blockType[i] === BLOCK_STONE && blockArmor[i] > 0) {
           blockArmor[i]--;
           blockFlashTimer[i] = BLOCK_FLASH_DURATION;
+          Audio.ballHit();
+          Audio.vibrateLight();
           ballVX[ballIdx] = 0;
           ballVY[ballIdx] = BALL_SPEED;
           ballY[ballIdx] = ry + rh + BALL_RADIUS;
@@ -127,6 +134,8 @@ const Physics = {
         blockRotation[i] = (Math.random() < 0.5 ? -1 : 1) * BLOCK_HIT_ROTATION;
         gameState.score += damage;
         triggerShake(SHAKE_HIT_DURATION, SHAKE_HIT_MAGNITUDE);
+        Audio.ballHit();
+        Audio.vibrateLight();
 
         if (blockHP[i] <= 0) {
           this.destroyBlock(i, gameState);
@@ -153,6 +162,8 @@ const Physics = {
       DESTROY_PARTICLE_LIFE,
       color[0], color[1], color[2]
     );
+    Audio.blockDestroyed();
+    Audio.vibrateMedium();
 
     if (blockType[i] === BLOCK_EXPLOSIVE) {
       this.explodeAdjacent(i, gameState);
@@ -203,6 +214,8 @@ const Physics = {
 
       if (dist < PICKUP_COLLECT_RADIUS) {
         pickupActive[i] = 0;
+        Audio.pickupCollected();
+        Audio.vibrateMedium();
         gameState.ballCount += PICKUP_BALL_BONUS;
         gameState.pickupsCollected++;
       }
