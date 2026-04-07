@@ -838,10 +838,10 @@ const Game = {
 
     // Pack cards
     const cardW = canvasW * 0.85;
-    const cardH = canvasH * 0.22;
+    const cardH = canvasH * 0.2;
     const cardX = (canvasW - cardW) / 2;
-    const startY = canvasH * 0.18;
-    const cardGap = canvasH * 0.02;
+    const startY = canvasH * 0.17;
+    const cardGap = canvasH * 0.015;
 
     const packBtns = [];
     for (let p = 0; p < PACKS.length; p++) {
@@ -1014,8 +1014,8 @@ const Game = {
 
   // --- Game Over Overlay ---
   renderGameOver() {
-    // Dim overlay
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    // Dim overlay (darker)
+    ctx.fillStyle = 'rgba(0,0,0,0.9)';
     ctx.fillRect(0, 0, canvasW, canvasH);
 
     const centerY = canvasH * 0.35;

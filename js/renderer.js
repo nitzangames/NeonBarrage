@@ -292,15 +292,26 @@ const Renderer = {
     ctx.textBaseline = 'middle';
     ctx.fillText(pack.name, midX, y + h * 0.15);
 
-    // Contents
-    ctx.font = `bold ${fs * 0.8}px ${FONT_BODY}`;
-    let contY = y + h * 0.32;
+    // Contents — 3-column grid
+    ctx.font = `bold ${fs * 0.75}px ${FONT_BODY}`;
+    const items = [];
     for (let i = 0; i < POWERUP_COUNT; i++) {
-      if (pack.items[i] > 0) {
-        ctx.fillStyle = rgb(PW_COLORS[i]);
-        ctx.fillText(`${pack.items[i]}× ${PW_NAMES[i]}`, midX, contY);
-        contY += fs * 1.1;
-      }
+      if (pack.items[i] > 0) items.push(i);
+    }
+    const cols = Math.min(3, items.length);
+    const gridRows = Math.ceil(items.length / cols);
+    const cellW = w * 0.3;
+    const rowH = fs * 1.2;
+    const gridStartY = y + h * 0.32;
+    const gridStartX = midX - (cols * cellW) / 2;
+    for (let idx = 0; idx < items.length; idx++) {
+      const i = items[idx];
+      const gc = idx % cols;
+      const gr = Math.floor(idx / cols);
+      const cx = gridStartX + gc * cellW + cellW / 2;
+      const cy = gridStartY + gr * rowH;
+      ctx.fillStyle = rgb(PW_COLORS[i]);
+      ctx.fillText(`${pack.items[i]}× ${PW_NAMES[i]}`, cx, cy);
     }
 
     // Cost / Buy button
