@@ -42,14 +42,14 @@ const LevelSelect = {
     const gap = canvasW * 0.025;
     const cellW = (canvasW - padding * 2 - gap * (cols - 1)) / cols;
     const cellH = cellW * 1.2;
-    const gridTop = canvasH * 0.12;
+    const gridTop = canvasH * 0.16;
     const gridHeight = rows * (cellH + gap);
-    this.maxScroll = Math.max(0, gridHeight - (canvasH * 0.78));
+    this.maxScroll = Math.max(0, gridHeight - (canvasH * 0.74));
 
     // Save context for clipping
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, gridTop, canvasW, canvasH * 0.78);
+    ctx.rect(0, gridTop, canvasW, canvasH * 0.74);
     ctx.clip();
 
     for (let i = 0; i < TOTAL_LEVELS; i++) {
@@ -161,12 +161,12 @@ const LevelSelect = {
     ctx.textBaseline = 'middle';
     ctx.fillText(`STARS COLLECTED: ${totalStars}/180`, canvasW / 2, barY + barH + canvasH * 0.025);
 
-    // Back button
+    // Back button (below title)
     const backW = canvasW * 0.2;
-    const backH = canvasH * 0.045;
+    const backH = canvasH * 0.04;
     const backX = canvasW * 0.05;
-    const backY = canvasH * 0.03;
-    Game.drawButton('BACK', backX, backY, backW, backH, COL.textDim, canvasH * 0.02);
+    const backY = canvasH * 0.1;
+    Game.drawButton('← BACK', backX, backY, backW, backH, COL.textDim, canvasH * 0.018);
 
     if (Input.tapped || Input.aimReleased) {
       if (Input.hitTestRect(backX, backY, backW, backH)) {
@@ -252,8 +252,34 @@ const Game = {
     this.state = STATE.AIMING;
   },
 
+  // --- Pause button hit test (checked before aim consumes input) ---
+  checkPause() {
+    if (!Input.tapped) return;
+    const pad = canvasW * 0.04;
+    const fontSize = canvasW * 0.035;
+    const hudH = canvasH * 0.08;
+    const row1Y = hudH * 0.32;
+    const row2Y = hudH * 0.72;
+    const pauseH = row2Y - row1Y + fontSize * 1.3;
+    const pauseW = pauseH;
+    const pauseBtnX = canvasW - pad - pauseW;
+    const pauseBtnY = row1Y - fontSize * 0.4;
+    if (Input.tapX >= pauseBtnX && Input.tapX <= pauseBtnX + pauseW &&
+        Input.tapY >= pauseBtnY && Input.tapY <= pauseBtnY + pauseH) {
+      Input.consumeTap();
+      this.state = STATE.MENU;
+      return true;
+    }
+    return false;
+  },
+
   // --- Update ---
   update(dt) {
+    // Check pause before anything else during gameplay
+    if (this.state >= STATE.AIMING && this.state <= STATE.TURN_END) {
+      if (this.checkPause()) return;
+    }
+
     switch (this.state) {
       case STATE.AIMING:
         this.updateAiming(dt);
@@ -456,17 +482,13 @@ const Game = {
       }
     }
 
-    // Shop button (disabled)
-    const shopY = lsY + btnH * 1.6;
-    this.drawButton('SHOP', btnX, shopY, btnW, btnH, COL.textDim, undefined, true);
-
     // Best score
     if (saveData.bestScore > 0) {
       ctx.font = `bold ${canvasW * 0.035}px ${FONT_BODY}`;
       ctx.fillStyle = rgb(COL.textDim);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('BEST: ' + saveData.bestScore, canvasW / 2, canvasH * 0.82);
+      ctx.fillText('BEST: ' + saveData.bestScore, canvasW / 2, lsY + btnH * 2.2);
     }
 
     // Consume any remaining input
@@ -491,42 +513,71 @@ const Game = {
     ctx.lineTo(canvasW, hudY + hudH);
     ctx.stroke();
 
-    const textY = hudY + hudH / 2;
     const pad = canvasW * 0.04;
     const fontSize = canvasW * 0.035;
+    const row1Y = hudY + hudH * 0.32;
+    const row2Y = hudY + hudH * 0.72;
 
-    // Level + Turn (left)
-    ctx.font = `bold ${fontSize}px ${FONT_BODY}`;
-    ctx.fillStyle = rgb(COL.textDim);
-    ctx.textAlign = 'left';
+    // --- Turn label (left, two lines) ---
     ctx.textBaseline = 'middle';
-    ctx.fillText(`LVL ${this.level + 1}`, pad, textY - fontSize * 0.6);
+
+    // "TURN" small label
+    ctx.font = `bold ${fontSize * 0.75}px ${FONT_BODY}`;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = rgb(COL.textDim);
+    ctx.fillText('TURN', pad, row1Y);
+
+    // Turn number (large)
+    ctx.font = `bold ${fontSize * 1.3}px ${FONT_BODY}`;
     ctx.fillStyle = rgb(COL.textWhite);
-    ctx.fillText(`Turn ${this.turn}`, pad, textY + fontSize * 0.6);
+    ctx.fillText(this.turn, pad, row2Y);
 
-    // Score (center)
-    ctx.font = `bold ${fontSize * 1.2}px ${FONT_BODY}`;
-    ctx.fillStyle = rgb(COL.green);
+    // --- Pause button (right, same height as turn two-liner) ---
+    const pauseH = row2Y - row1Y + fontSize * 1.3;
+    const pauseW = pauseH;
+    const pauseBtnX = canvasW - pad - pauseW;
+    const pauseBtnY = row1Y - fontSize * 0.4;
+    ctx.fillStyle = rgb(COL.textDim, 0.5);
+    ctx.beginPath();
+    ctx.roundRect(pauseBtnX, pauseBtnY, pauseW, pauseH, 4);
+    ctx.fill();
+    ctx.font = `bold ${pauseH * 0.4}px ${FONT_BODY}`;
+    ctx.fillStyle = rgb(COL.textWhite);
     ctx.textAlign = 'center';
-    ctx.fillText(this.score, canvasW / 2, textY);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('✕', pauseBtnX + pauseW / 2, pauseBtnY + pauseH / 2);
 
-    // Mission progress (right)
+    // --- Center column: Level label + Score ---
+    // Level above score
+    ctx.font = `bold ${fontSize * 0.75}px ${FONT_BODY}`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = rgb(COL.textDim);
+    ctx.fillText(`LEVEL ${this.level + 1}`, canvasW / 2, row1Y);
+
+    // Score
+    ctx.font = `bold ${fontSize * 1.3}px ${FONT_BODY}`;
+    ctx.fillStyle = rgb(COL.green);
+    ctx.fillText(this.score, canvasW / 2, row2Y);
+
+    // --- Sub-bar below HUD: Mission (left), Stars (right) ---
+    const subY = hudY + hudH + fontSize * 0.7;
+    ctx.font = `bold ${fontSize * 0.85}px ${FONT_BODY}`;
+    ctx.textBaseline = 'middle';
+
+    // Mission progress (left)
+    ctx.textAlign = 'left';
+    ctx.fillStyle = rgb(COL.textDim);
+    ctx.fillText(`Survive: ${this.turn} / ${this.missionTarget}`, pad, subY);
+
+    // Stars (right)
     const stars = calcStars(this.turn, this.missionTarget);
     ctx.font = `bold ${fontSize}px ${FONT_BODY}`;
-    ctx.textAlign = 'right';
-
-    // Stars display
     for (let s = 0; s < 3; s++) {
-      const starX = canvasW - pad - (2 - s) * fontSize * 1.1;
-      const starY = textY - fontSize * 0.6;
+      const starX = canvasW - pad - (2 - s) * fontSize * 0.9;
+      ctx.textAlign = 'center';
       ctx.fillStyle = s < stars ? rgb(COL.gold) : rgb(COL.textDim, 0.4);
-      ctx.fillText('\u2605', starX, starY);
+      ctx.fillText('\u2605', starX, subY);
     }
-
-    // Target text
-    ctx.fillStyle = rgb(COL.textDim);
-    ctx.textAlign = 'right';
-    ctx.fillText(`${this.turn}/${this.missionTarget}`, canvasW - pad, textY + fontSize * 0.6);
   },
 
   // --- Game Render ---
@@ -613,8 +664,8 @@ const Game = {
 
   // --- Level Complete Overlay ---
   renderLevelComplete() {
-    // Dim overlay
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    // Dim overlay (darker)
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
     ctx.fillRect(0, 0, canvasW, canvasH);
 
     const centerY = canvasH * 0.25;

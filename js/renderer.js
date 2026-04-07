@@ -55,7 +55,7 @@ const Renderer = {
     const hp = blockHP[i];
     const fontSize = hp >= 100 ? this.us(0.28) : this.us(0.35);
     ctx.font = `bold ${fontSize}px ${FONT_BODY}`;
-    ctx.fillStyle = rgb(COL.textDark);
+    ctx.fillStyle = color === COL.green ? rgb(COL.textDark) : rgb(COL.textWhite);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(hp, px + pw / 2, py + ph / 2);
