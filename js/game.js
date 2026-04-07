@@ -201,6 +201,11 @@ const Game = {
   // Turn-end animation timer
   turnEndTimer: 0,
 
+  // Powerup state
+  activePowerup: -1,  // -1 = none, PW_LASER or PW_FIRE
+  blocksThisTurn: 0,
+  bestTurnBlocks: 0,
+
   // --- Button Helper ---
   drawButton(text, x, y, w, h, color, fontSize, disabled) {
     color = color || COL.green;
@@ -235,6 +240,16 @@ const Game = {
     this.launchTimer = 0;
     this.autoCompleteTimer = 0;
     this.turnEndTimer = 0;
+    this.activePowerup = -1;
+    this.blocksThisTurn = 0;
+    this.bestTurnBlocks = 0;
+
+    // Give test powerups (Phase 2a: 3 of each for testing)
+    for (let p = 0; p < POWERUP_COUNT; p++) {
+      if (powerupInventory[p] < 3) powerupInventory[p] = 3;
+    }
+    syncPowerupsToSave();
+    saveProgress();
 
     clearAllPools();
     Physics.resetLastHit();
@@ -247,7 +262,7 @@ const Game = {
     Input.tapped = false;
 
     // Spawn first row
-    spawnRow(0, this.turn);
+    spawnRow(0, this.turn, this.level);
 
     this.state = STATE.AIMING;
   },
@@ -302,19 +317,98 @@ const Game = {
   },
 
   updateAiming(dt) {
-    // Cache aim state before updateAim clears aimReleased
+    // Check powerup bar taps
+    if (Input.tapped) {
+      this.checkPowerupTap();
+    }
+
     const wasAiming = Input.isAiming;
     const released = Input.aimReleased;
 
     Input.updateAim();
 
     if (released && wasAiming) {
-      // Start launching
       this.ballsToLaunch = this.ballCount;
       this.launchTimer = 0;
+      this.blocksThisTurn = 0;
       this.state = STATE.LAUNCHING;
       Input.isAiming = false;
     }
+  },
+
+  checkPowerupTap() {
+    const barH = canvasH * 0.06;
+    const barY = canvasH - barH - canvasH * 0.01;
+    const btnW = (canvasW * 0.88) / POWERUP_COUNT;
+    const gap = canvasW * 0.01;
+    const startX = (canvasW - (btnW * POWERUP_COUNT + gap * (POWERUP_COUNT - 1))) / 2;
+
+    for (let p = 0; p < POWERUP_COUNT; p++) {
+      const x = startX + p * (btnW + gap);
+      if (Input.tapX >= x && Input.tapX <= x + btnW &&
+          Input.tapY >= barY && Input.tapY <= barY + barH) {
+        Input.consumeTap();
+        this.activatePowerup(p);
+        return;
+      }
+    }
+  },
+
+  activatePowerup(type) {
+    if (powerupInventory[type] <= 0) return;
+
+    if (type === PW_LASER || type === PW_FIRE) {
+      if (this.activePowerup === type) {
+        this.activePowerup = -1;
+        return;
+      }
+      if (this.activePowerup === PW_LASER || this.activePowerup === PW_FIRE) {
+        return;
+      }
+      powerupInventory[type]--;
+      this.activePowerup = type;
+    } else if (type === PW_EXTRA) {
+      powerupInventory[type]--;
+      this.ballCount += PW_EXTRA_BALLS;
+    } else if (type === PW_MAGNET) {
+      powerupInventory[type]--;
+      for (let i = 0; i < MAX_PICKUPS; i++) {
+        if (pickupActive[i]) {
+          pickupActive[i] = 0;
+          this.ballCount += PICKUP_BALL_BONUS;
+          this.pickupsCollected++;
+        }
+      }
+    } else if (type === PW_SHOCKWAVE) {
+      powerupInventory[type]--;
+      let lowestRow = -1;
+      for (let i = 0; i < MAX_BLOCKS; i++) {
+        if (blockActive[i] && blockRow[i] > lowestRow) lowestRow = blockRow[i];
+      }
+      if (lowestRow >= 0) {
+        for (let i = 0; i < MAX_BLOCKS; i++) {
+          if (blockActive[i] && blockRow[i] === lowestRow) {
+            blockActive[i] = 0;
+            this.score++;
+            this.blocksDestroyed++;
+            const color = blockColor(blockMaxHP[i], blockType[i]);
+            spawnParticles(blockX[i] + BLOCK_SIZE / 2, blockY[i] + BLOCK_SIZE / 2,
+              DESTROY_PARTICLE_COUNT, DESTROY_PARTICLE_SPEED, DESTROY_PARTICLE_LIFE,
+              color[0], color[1], color[2]);
+          }
+        }
+      }
+    } else if (type === PW_SHRINK) {
+      powerupInventory[type]--;
+      for (let i = 0; i < MAX_BLOCKS; i++) {
+        if (blockActive[i]) {
+          blockHP[i] = Math.max(1, Math.floor(blockHP[i] / 2));
+          blockFlashTimer[i] = BLOCK_FLASH_DURATION;
+        }
+      }
+    }
+    syncPowerupsToSave();
+    saveProgress();
   },
 
   updateLaunching(dt) {
@@ -341,7 +435,8 @@ const Game = {
     const active = Physics.update(dt, this);
 
     // Check 3-star auto-complete
-    const stars = calcStars(this.turn, this.missionTarget);
+    const progress = getMissionProgress(this);
+    const stars = calcStars(progress, this.missionTarget);
     if (stars >= 3) {
       this.autoCompleteTimer += dt;
       if (this.autoCompleteTimer >= 1.0) {
@@ -362,12 +457,18 @@ const Game = {
     this.turnEndTimer -= dt;
     if (this.turnEndTimer > 0) return;
 
-    // Shift blocks down
-    shiftBlocksDown();
+    if (this.blocksThisTurn > this.bestTurnBlocks) {
+      this.bestTurnBlocks = this.blocksThisTurn;
+    }
+    this.blocksThisTurn = 0;
+    this.activePowerup = -1;
 
-    // Check game over
+    shiftBlocksDown();
+    moveMovingBlocks();
+
     if (checkGameOver()) {
-      const stars = calcStars(this.turn, this.missionTarget);
+      const progress = getMissionProgress(this);
+      const stars = calcStars(progress, this.missionTarget);
       if (stars >= 1) {
         this.completeMission();
       } else {
@@ -376,16 +477,16 @@ const Game = {
       return;
     }
 
-    // Increment turn, spawn new row
     this.turn++;
-    spawnRow(0, this.turn);
+    spawnRow(0, this.turn, this.level);
     Physics.resetLastHit();
 
     this.state = STATE.AIMING;
   },
 
   completeMission() {
-    const stars = calcStars(this.turn, this.missionTarget);
+    const progress = getMissionProgress(this);
+    const stars = calcStars(progress, this.missionTarget);
 
     // Save progress
     if (stars > saveData.stars[this.level]) {
@@ -565,12 +666,14 @@ const Game = {
     ctx.textBaseline = 'middle';
 
     // Mission progress (left)
+    const progress = getMissionProgress(this);
+    const label = getMissionLabel(this.level);
     ctx.textAlign = 'left';
     ctx.fillStyle = rgb(COL.textDim);
-    ctx.fillText(`Survive: ${this.turn} / ${this.missionTarget}`, pad, subY);
+    ctx.fillText(`${label}: ${progress} / ${this.missionTarget}`, pad, subY);
 
     // Stars (right)
-    const stars = calcStars(this.turn, this.missionTarget);
+    const stars = calcStars(progress, this.missionTarget);
     ctx.font = `bold ${fontSize}px ${FONT_BODY}`;
     for (let s = 0; s < 3; s++) {
       const starX = canvasW - pad - (2 - s) * fontSize * 0.9;
@@ -584,6 +687,11 @@ const Game = {
   renderGame() {
     Renderer.drawBackground();
     this.renderHUD();
+
+    if (this.activePowerup === PW_LASER) Renderer.ballColor = [0, 212, 255];
+    else if (this.activePowerup === PW_FIRE) Renderer.ballColor = COL.orange;
+    else Renderer.ballColor = COL.green;
+
     Renderer.drawBlocks();
     Renderer.drawPickups();
     Renderer.drawBalls();
@@ -594,6 +702,10 @@ const Game = {
         Renderer.drawAimLine(Input.launchX, Input.launchY, Input.aimDirX, Input.aimDirY);
       }
       Renderer.drawLaunchPoint(Input.launchX, Input.launchY, this.ballCount);
+    }
+
+    if (this.state === STATE.AIMING) {
+      Renderer.drawPowerupBar(this.activePowerup);
     }
   },
 
@@ -678,7 +790,8 @@ const Game = {
     ctx.fillText('LEVEL COMPLETE', canvasW / 2, centerY);
 
     // Stars
-    const stars = calcStars(this.turn, this.missionTarget);
+    const progress = getMissionProgress(this);
+    const stars = calcStars(progress, this.missionTarget);
     const starSize = canvasW * 0.12;
     ctx.font = `${starSize}px ${FONT_BODY}`;
     const starY = centerY + canvasH * 0.1;
