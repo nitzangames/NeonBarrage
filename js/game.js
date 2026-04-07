@@ -205,6 +205,9 @@ const Game = {
   activePowerup: -1,  // -1 = none, PW_LASER or PW_FIRE
   blocksThisTurn: 0,
   bestTurnBlocks: 0,
+  coinsEarned: 0,
+  usedContinue: false,
+  chestRewards: null,  // array of 3 powerup indices when chest opened
 
   // --- Button Helper ---
   drawButton(text, x, y, w, h, color, fontSize, disabled) {
@@ -243,13 +246,8 @@ const Game = {
     this.activePowerup = -1;
     this.blocksThisTurn = 0;
     this.bestTurnBlocks = 0;
-
-    // Give test powerups (Phase 2a: 3 of each for testing)
-    for (let p = 0; p < POWERUP_COUNT; p++) {
-      if (powerupInventory[p] < 3) powerupInventory[p] = 3;
-    }
-    syncPowerupsToSave();
-    saveProgress();
+    this.coinsEarned = 0;
+    this.usedContinue = false;
 
     clearAllPools();
     Physics.resetLastHit();
@@ -505,18 +503,27 @@ const Game = {
   completeMission() {
     const progress = getMissionProgress(this);
     const stars = calcStars(progress, this.missionTarget);
+    const prevStars = saveData.stars[this.level];
+    const newStars = Math.max(0, stars - prevStars);
 
-    // Save progress
-    if (stars > saveData.stars[this.level]) {
+    // Award coins for new stars only
+    this.coinsEarned = newStars * COINS_PER_STAR;
+    saveData.coins += this.coinsEarned;
+
+    // Track chest stars
+    saveData.chestStars += newStars;
+
+    // Save star progress
+    if (stars > prevStars) {
       saveData.stars[this.level] = stars;
     }
     if (this.score > saveData.bestScore) {
       saveData.bestScore = this.score;
     }
-    // Unlock next level
     if (this.level === saveData.currentLevel && this.level < TOTAL_LEVELS - 1) {
       saveData.currentLevel = this.level + 1;
     }
+    syncPowerupsToSave();
     saveProgress();
 
     this.state = STATE.LEVEL_COMPLETE;
@@ -545,6 +552,15 @@ const Game = {
         this.renderGame();
         this.renderLevelComplete();
         break;
+      case STATE.SHOP:
+        this.renderShop();
+        break;
+      case STATE.SETTINGS:
+        this.renderSettings();
+        break;
+      case STATE.CHEST_POPUP:
+        this.renderChestPopup();
+        break;
     }
   },
 
@@ -552,6 +568,23 @@ const Game = {
   renderMenu() {
     ctx.fillStyle = rgb(COL.bgDark);
     ctx.fillRect(0, 0, canvasW, canvasH);
+
+    // Coin display (top-left)
+    ctx.font = `bold ${canvasW * 0.04}px ${FONT_BODY}`;
+    ctx.fillStyle = rgb(COL.gold);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('\u2B22 ' + saveData.coins, canvasW * 0.04, canvasH * 0.04);
+
+    // Settings gear (top-right)
+    const gearSize = canvasW * 0.08;
+    const gearX = canvasW - canvasW * 0.04 - gearSize;
+    const gearY = canvasH * 0.02;
+    ctx.font = `bold ${gearSize}px ${FONT_BODY}`;
+    ctx.fillStyle = rgb(COL.textDim);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('\u2699', gearX + gearSize / 2, gearY + gearSize / 2);
 
     // Title
     const titleSize = canvasW * 0.09;
@@ -561,58 +594,92 @@ const Game = {
     ctx.textBaseline = 'middle';
     ctx.shadowColor = rgb(COL.green, 0.6);
     ctx.shadowBlur = 20;
-    ctx.fillText('NEON', canvasW / 2, canvasH * 0.28);
-    ctx.fillText('BARRAGE', canvasW / 2, canvasH * 0.28 + titleSize * 1.2);
+    ctx.fillText('NEON', canvasW / 2, canvasH * 0.2);
+    ctx.fillText('BARRAGE', canvasW / 2, canvasH * 0.2 + titleSize * 1.2);
     ctx.shadowBlur = 0;
 
     // Subtitle
     ctx.font = `bold ${canvasW * 0.035}px ${FONT_BODY}`;
     ctx.fillStyle = rgb(COL.textDim);
-    ctx.fillText('BREAK THE GRID', canvasW / 2, canvasH * 0.28 + titleSize * 2.5);
+    ctx.fillText('BREAK THE GRID', canvasW / 2, canvasH * 0.2 + titleSize * 2.5);
 
-    // Play button
+    // Star Chest
+    const chestY = canvasH * 0.42;
+    const chestFull = saveData.chestStars >= CHEST_THRESHOLD;
+    ctx.font = `bold ${canvasW * 0.07}px ${FONT_BODY}`;
+    ctx.fillStyle = chestFull ? rgb(COL.gold) : rgb(COL.textDim, 0.5);
+    ctx.fillText('\u2B22', canvasW / 2, chestY);
+    ctx.font = `bold ${canvasW * 0.03}px ${FONT_BODY}`;
+    ctx.fillStyle = chestFull ? rgb(COL.gold) : rgb(COL.textDim);
+    ctx.fillText(`${saveData.chestStars}/${CHEST_THRESHOLD}`, canvasW / 2, chestY + canvasW * 0.05);
+
+    // Buttons
     const btnW = canvasW * 0.55;
-    const btnH = canvasH * 0.065;
+    const btnH = canvasH * 0.06;
     const btnX = (canvasW - btnW) / 2;
-    const playY = canvasH * 0.55;
+    const playY = canvasH * 0.54;
     this.drawButton('PLAY', btnX, playY, btnW, btnH, COL.green);
 
-    if (Input.tapped || Input.aimReleased) {
-      if (Input.hitTestRect(btnX, playY, btnW, btnH)) {
-        Input.consumeTap();
-        Input.consumeRelease();
-        this.startLevel(saveData.currentLevel);
-        return;
-      }
-    }
-
-    // Level Select button
-    const lsY = playY + btnH * 1.6;
+    const lsY = playY + btnH * 1.5;
     this.drawButton('LEVEL SELECT', btnX, lsY, btnW, btnH, COL.blue);
 
-    if (Input.tapped || Input.aimReleased) {
-      if (Input.hitTestRect(btnX, lsY, btnW, btnH)) {
-        Input.consumeTap();
-        Input.consumeRelease();
-        LevelSelect.scrollY = 0;
-        LevelSelect.scrollVel = 0;
-        this.state = STATE.LEVEL_SELECT;
-        return;
-      }
-    }
+    const shopY = lsY + btnH * 1.5;
+    this.drawButton('SHOP', btnX, shopY, btnW, btnH, COL.gold);
 
     // Best score
     if (saveData.bestScore > 0) {
-      ctx.font = `bold ${canvasW * 0.035}px ${FONT_BODY}`;
+      ctx.font = `bold ${canvasW * 0.03}px ${FONT_BODY}`;
       ctx.fillStyle = rgb(COL.textDim);
       ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('BEST: ' + saveData.bestScore, canvasW / 2, lsY + btnH * 2.2);
+      ctx.fillText('BEST: ' + saveData.bestScore, canvasW / 2, shopY + btnH * 1.8);
     }
 
-    // Consume any remaining input
+    // Input handling
+    if (Input.tapped || Input.aimReleased) {
+      if (Input.hitTestRect(btnX, playY, btnW, btnH)) {
+        Input.consumeTap(); Input.consumeRelease();
+        this.startLevel(saveData.currentLevel);
+        return;
+      }
+      if (Input.hitTestRect(btnX, lsY, btnW, btnH)) {
+        Input.consumeTap(); Input.consumeRelease();
+        LevelSelect.scrollY = 0; LevelSelect.scrollVel = 0;
+        this.state = STATE.LEVEL_SELECT;
+        return;
+      }
+      if (Input.hitTestRect(btnX, shopY, btnW, btnH)) {
+        Input.consumeTap(); Input.consumeRelease();
+        this.state = STATE.SHOP;
+        return;
+      }
+      // Settings gear
+      if (Input.hitTestRect(gearX, gearY, gearSize, gearSize)) {
+        Input.consumeTap(); Input.consumeRelease();
+        this.state = STATE.SETTINGS;
+        return;
+      }
+      // Star chest
+      if (chestFull && Input.hitTestRect(canvasW / 2 - canvasW * 0.06, chestY - canvasW * 0.05, canvasW * 0.12, canvasW * 0.12)) {
+        Input.consumeTap(); Input.consumeRelease();
+        this.openChest();
+        return;
+      }
+    }
     if (Input.tapped) Input.consumeTap();
     if (Input.aimReleased) Input.consumeRelease();
+  },
+
+  openChest() {
+    this.chestRewards = [];
+    for (let i = 0; i < CHEST_REWARD_COUNT; i++) {
+      const type = Math.floor(Math.random() * POWERUP_COUNT);
+      this.chestRewards.push(type);
+      powerupInventory[type]++;
+    }
+    saveData.chestStars -= CHEST_THRESHOLD;
+    syncPowerupsToSave();
+    saveProgress();
+    this.state = STATE.CHEST_POPUP;
   },
 
   // --- HUD ---
@@ -722,9 +789,196 @@ const Game = {
       Renderer.drawLaunchPoint(Input.launchX, Input.launchY, this.ballCount);
     }
 
-    if (this.state === STATE.AIMING) {
-      Renderer.drawPowerupBar(this.activePowerup);
+    const pwFaded = this.state !== STATE.AIMING;
+    Renderer.drawPowerupBar(this.activePowerup, pwFaded);
+  },
+
+  // --- Shop ---
+  renderShop() {
+    ctx.fillStyle = rgb(COL.bgDark);
+    ctx.fillRect(0, 0, canvasW, canvasH);
+
+    // Title
+    ctx.font = `bold ${canvasW * 0.06}px ${FONT_TITLE}`;
+    ctx.fillStyle = rgb(COL.gold);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('SHOP', canvasW / 2, canvasH * 0.06);
+
+    // Coin balance
+    ctx.font = `bold ${canvasW * 0.04}px ${FONT_BODY}`;
+    ctx.fillStyle = rgb(COL.gold);
+    ctx.fillText('\u2B22 ' + saveData.coins, canvasW / 2, canvasH * 0.12);
+
+    // Pack cards
+    const cardW = canvasW * 0.85;
+    const cardH = canvasH * 0.22;
+    const cardX = (canvasW - cardW) / 2;
+    const startY = canvasH * 0.18;
+    const cardGap = canvasH * 0.02;
+
+    const packBtns = [];
+    for (let p = 0; p < PACKS.length; p++) {
+      const y = startY + p * (cardH + cardGap);
+      const canAfford = saveData.coins >= PACKS[p].cost;
+      const btn = Renderer.drawPackCard(cardX, y, cardW, cardH, PACKS[p], canAfford);
+      packBtns.push({ ...btn, packIdx: p, canAfford });
     }
+
+    // Back button
+    const backW = canvasW * 0.3;
+    const backH = canvasH * 0.05;
+    const backX = (canvasW - backW) / 2;
+    const backY = canvasH * 0.9;
+    this.drawButton('\u2190 BACK', backX, backY, backW, backH, COL.textDim);
+
+    // Input
+    if (Input.tapped || Input.aimReleased) {
+      for (const btn of packBtns) {
+        if (btn.canAfford && Input.hitTestRect(btn.btnX, btn.btnY, btn.btnW, btn.btnH)) {
+          Input.consumeTap(); Input.consumeRelease();
+          const pack = PACKS[btn.packIdx];
+          saveData.coins -= pack.cost;
+          for (let i = 0; i < POWERUP_COUNT; i++) {
+            powerupInventory[i] += pack.items[i];
+          }
+          syncPowerupsToSave();
+          saveProgress();
+          return;
+        }
+      }
+      if (Input.hitTestRect(backX, backY, backW, backH)) {
+        Input.consumeTap(); Input.consumeRelease();
+        this.state = STATE.MENU;
+        return;
+      }
+    }
+    if (Input.tapped) Input.consumeTap();
+    if (Input.aimReleased) Input.consumeRelease();
+  },
+
+  // --- Settings ---
+  renderSettings() {
+    ctx.fillStyle = rgb(COL.bgDark);
+    ctx.fillRect(0, 0, canvasW, canvasH);
+
+    // Title
+    ctx.font = `bold ${canvasW * 0.06}px ${FONT_TITLE}`;
+    ctx.fillStyle = rgb(COL.textWhite);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('SETTINGS', canvasW / 2, canvasH * 0.08);
+
+    // Toggles
+    const toggleW = canvasW * 0.18;
+    const toggleH = canvasH * 0.04;
+    const toggleX = canvasW * 0.58;
+    const startY = canvasH * 0.22;
+    const gap = canvasH * 0.08;
+
+    const toggles = [
+      { key: 'sound', label: 'Sound' },
+      { key: 'music', label: 'Music' },
+      { key: 'haptics', label: 'Haptics' }
+    ];
+
+    for (let t = 0; t < toggles.length; t++) {
+      const y = startY + t * gap;
+      Renderer.drawToggle(toggleX, y, toggleW, toggleH, saveData.settings[toggles[t].key], toggles[t].label);
+
+      if (Input.tapped) {
+        if (Input.tapX >= toggleX && Input.tapX <= toggleX + toggleW &&
+            Input.tapY >= y && Input.tapY <= y + toggleH) {
+          Input.consumeTap();
+          saveData.settings[toggles[t].key] = !saveData.settings[toggles[t].key];
+          saveProgress();
+        }
+      }
+    }
+
+    // Main Menu button
+    const btnW = canvasW * 0.4;
+    const btnH = canvasH * 0.055;
+    const btnX = (canvasW - btnW) / 2;
+    const btnY = canvasH * 0.6;
+    this.drawButton('MAIN MENU', btnX, btnY, btnW, btnH, COL.textDim);
+
+    if (Input.tapped || Input.aimReleased) {
+      if (Input.hitTestRect(btnX, btnY, btnW, btnH)) {
+        Input.consumeTap(); Input.consumeRelease();
+        this.state = STATE.MENU;
+        return;
+      }
+    }
+
+    // Version
+    ctx.font = `bold ${canvasW * 0.025}px ${FONT_BODY}`;
+    ctx.fillStyle = rgb(COL.textDim, 0.5);
+    ctx.textAlign = 'center';
+    ctx.fillText('v1.0', canvasW / 2, canvasH * 0.92);
+
+    if (Input.tapped) Input.consumeTap();
+    if (Input.aimReleased) Input.consumeRelease();
+  },
+
+  // --- Chest Popup ---
+  renderChestPopup() {
+    // Dim overlay
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    ctx.fillRect(0, 0, canvasW, canvasH);
+
+    const centerY = canvasH * 0.25;
+
+    // Title
+    ctx.font = `bold ${canvasW * 0.07}px ${FONT_TITLE}`;
+    ctx.fillStyle = rgb(COL.gold);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = rgb(COL.gold, 0.5);
+    ctx.shadowBlur = 15;
+    ctx.fillText('CHEST OPENED!', canvasW / 2, centerY);
+    ctx.shadowBlur = 0;
+
+    // Rewards
+    if (this.chestRewards) {
+      const rewardY = centerY + canvasH * 0.12;
+      const slotW = canvasW * 0.25;
+      for (let i = 0; i < this.chestRewards.length; i++) {
+        const type = this.chestRewards[i];
+        const sx = canvasW / 2 + (i - 1) * slotW;
+
+        // Slot background
+        ctx.beginPath();
+        ctx.roundRect(sx - slotW * 0.4, rewardY - canvasH * 0.04, slotW * 0.8, canvasH * 0.1, 8);
+        ctx.fillStyle = rgb(PW_COLORS[type], 0.15);
+        ctx.fill();
+        ctx.strokeStyle = rgb(PW_COLORS[type], 0.5);
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Powerup name
+        ctx.font = `bold ${canvasW * 0.035}px ${FONT_BODY}`;
+        ctx.fillStyle = rgb(PW_COLORS[type]);
+        ctx.fillText(PW_NAMES[type], sx, rewardY + canvasH * 0.02);
+      }
+    }
+
+    // Awesome button
+    const btnW = canvasW * 0.45;
+    const btnH = canvasH * 0.06;
+    const btnX = (canvasW - btnW) / 2;
+    const btnY = canvasH * 0.6;
+    this.drawButton('AWESOME!', btnX, btnY, btnW, btnH, COL.gold);
+
+    if (Input.tapped || Input.aimReleased) {
+      if (Input.hitTestRect(btnX, btnY, btnW, btnH)) {
+        Input.consumeTap(); Input.consumeRelease();
+        this.state = STATE.MENU;
+        return;
+      }
+    }
+    if (Input.tapped) Input.consumeTap();
+    if (Input.aimReleased) Input.consumeRelease();
   },
 
   // --- Game Over Overlay ---
@@ -757,11 +1011,32 @@ const Game = {
     ctx.fillStyle = rgb(COL.textDim);
     ctx.fillText('Turns: ' + this.turn, canvasW / 2, centerY + canvasH * 0.14);
 
+    // Continue button (if affordable and not already used)
+    const canContinue = saveData.coins >= CONTINUE_COST && !this.usedContinue;
+    if (canContinue) {
+      const contW = canvasW * 0.55;
+      const contH = canvasH * 0.06;
+      const contX = (canvasW - contW) / 2;
+      const contY = canvasH * 0.5;
+      this.drawButton(`CONTINUE (${CONTINUE_COST} coins)`, contX, contY, contW, contH, COL.purple);
+
+      if (Input.tapped || Input.aimReleased) {
+        if (Input.hitTestRect(contX, contY, contW, contH)) {
+          Input.consumeTap(); Input.consumeRelease();
+          saveData.coins -= CONTINUE_COST;
+          saveProgress();
+          this.usedContinue = true;
+          this.state = STATE.AIMING;
+          return;
+        }
+      }
+    }
+
     // Retry button
     const btnW = canvasW * 0.55;
     const btnH = canvasH * 0.065;
     const btnX = (canvasW - btnW) / 2;
-    const retryY = canvasH * 0.58;
+    const retryY = canContinue ? canvasH * 0.6 : canvasH * 0.55;
     this.drawButton('RETRY', btnX, retryY, btnW, btnH, COL.green);
 
     if (Input.tapped || Input.aimReleased) {
@@ -828,6 +1103,13 @@ const Game = {
     ctx.font = `bold ${canvasW * 0.04}px ${FONT_BODY}`;
     ctx.fillStyle = rgb(COL.textDim);
     ctx.fillText(`Turns: ${this.turn} / ${this.missionTarget}`, canvasW / 2, starY + canvasH * 0.14);
+
+    // Coins earned
+    if (this.coinsEarned > 0) {
+      ctx.font = `bold ${canvasW * 0.045}px ${FONT_BODY}`;
+      ctx.fillStyle = rgb(COL.gold);
+      ctx.fillText('+' + this.coinsEarned + ' coins', canvasW / 2, starY + canvasH * 0.2);
+    }
 
     // Next Level button
     const btnW = canvasW * 0.55;
