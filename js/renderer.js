@@ -247,7 +247,86 @@ const Renderer = {
     ctx.fillText('×' + ballCount, px, py + this.us(0.5));
   },
 
-  drawPowerupBar(activePowerup) {
+  drawToggle(x, y, w, h, isOn, label) {
+    // Track background
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, h / 2);
+    ctx.fillStyle = isOn ? rgb(COL.green, 0.3) : rgb(COL.bgCard);
+    ctx.fill();
+    ctx.strokeStyle = isOn ? rgb(COL.green, 0.6) : rgb(COL.borderDim);
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Knob
+    const knobR = h * 0.35;
+    const knobX = isOn ? x + w - h / 2 : x + h / 2;
+    ctx.beginPath();
+    ctx.arc(knobX, y + h / 2, knobR, 0, Math.PI * 2);
+    ctx.fillStyle = isOn ? rgb(COL.green) : rgb(COL.textDim);
+    ctx.fill();
+
+    // Label
+    ctx.font = `bold ${h * 0.7}px ${FONT_BODY}`;
+    ctx.fillStyle = rgb(COL.textWhite);
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x - h * 0.4, y + h / 2);
+  },
+
+  drawPackCard(x, y, w, h, pack, canAfford) {
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 8);
+    ctx.fillStyle = rgb(COL.bgCard);
+    ctx.fill();
+    ctx.strokeStyle = rgb(COL.borderDim);
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    const midX = x + w / 2;
+    const fs = h * 0.13;
+
+    // Pack name
+    ctx.font = `bold ${fs * 1.2}px ${FONT_BODY}`;
+    ctx.fillStyle = rgb(COL.textWhite);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(pack.name, midX, y + h * 0.15);
+
+    // Contents
+    ctx.font = `bold ${fs * 0.8}px ${FONT_BODY}`;
+    let contY = y + h * 0.32;
+    for (let i = 0; i < POWERUP_COUNT; i++) {
+      if (pack.items[i] > 0) {
+        ctx.fillStyle = rgb(PW_COLORS[i]);
+        ctx.fillText(`${pack.items[i]}× ${PW_NAMES[i]}`, midX, contY);
+        contY += fs * 1.1;
+      }
+    }
+
+    // Cost / Buy button
+    const btnW = w * 0.5;
+    const btnH = h * 0.16;
+    const btnX = midX - btnW / 2;
+    const btnY = y + h - btnH - h * 0.08;
+    const color = canAfford ? COL.gold : COL.textDim;
+
+    ctx.beginPath();
+    ctx.roundRect(btnX, btnY, btnW, btnH, btnH / 2);
+    ctx.fillStyle = canAfford ? rgb(COL.gold, 0.2) : rgb(COL.bgCard);
+    ctx.fill();
+    ctx.strokeStyle = rgb(color, 0.6);
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.font = `bold ${btnH * 0.5}px ${FONT_BODY}`;
+    ctx.fillStyle = rgb(color);
+    ctx.fillText(`${pack.cost} coins`, midX, btnY + btnH / 2);
+
+    return { btnX, btnY, btnW, btnH };
+  },
+
+  drawPowerupBar(activePowerup, faded) {
+    if (faded) ctx.globalAlpha = 0.3;
     const barH = canvasH * 0.06;
     const barY = canvasH - barH - canvasH * 0.01;
     const btnW = (canvasW * 0.88) / POWERUP_COUNT;
@@ -292,6 +371,7 @@ const Renderer = {
       ctx.fillText(count, x + btnW / 2, barY + barH * 0.72);
     }
 
+    if (faded) ctx.globalAlpha = 1;
     return { barY, barH, btnW, gap, startX };
   }
 };
