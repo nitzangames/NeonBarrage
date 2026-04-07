@@ -62,6 +62,13 @@ const DESTROY_PARTICLE_LIFE = 0.4;
 
 // --- Block Hit ---
 const BLOCK_FLASH_DURATION = 0.12;
+const BLOCK_HIT_ROTATION = 0.14;  // radians (~8 degrees)
+
+// --- Screen Shake ---
+const SHAKE_HIT_DURATION = 0.08;
+const SHAKE_HIT_MAGNITUDE = 2;
+const SHAKE_DESTROY_DURATION = 0.12;
+const SHAKE_DESTROY_MAGNITUDE = 4;
 
 // --- Pickup ---
 const PICKUP_SPAWN_CHANCE = 0.15;

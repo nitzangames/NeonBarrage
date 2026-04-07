@@ -30,8 +30,16 @@ const Renderer = {
     const radius = this.us(0.1);
 
     const type = blockType[i];
-
     const color = blockColor(blockHP[i], type);
+
+    // Apply rotation if hit
+    const rot = blockRotation[i];
+    if (rot !== 0) {
+      ctx.save();
+      ctx.translate(px + pw / 2, py + ph / 2);
+      ctx.rotate(rot);
+      ctx.translate(-(px + pw / 2), -(py + ph / 2));
+    }
 
     // Block fill
     ctx.beginPath();
@@ -77,6 +85,8 @@ const Renderer = {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(hp, px + pw / 2, py + ph / 2 + this.us(0.05));
+
+    if (rot !== 0) ctx.restore();
   },
 
   drawBlocks() {

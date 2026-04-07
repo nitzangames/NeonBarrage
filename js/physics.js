@@ -124,10 +124,13 @@ const Physics = {
         // Damage
         blockHP[i] -= damage;
         blockFlashTimer[i] = BLOCK_FLASH_DURATION;
+        blockRotation[i] = (Math.random() < 0.5 ? -1 : 1) * BLOCK_HIT_ROTATION;
         gameState.score += damage;
+        triggerShake(SHAKE_HIT_DURATION, SHAKE_HIT_MAGNITUDE);
 
         if (blockHP[i] <= 0) {
           this.destroyBlock(i, gameState);
+          triggerShake(SHAKE_DESTROY_DURATION, SHAKE_DESTROY_MAGNITUDE);
         }
 
         if (!isLaser) break;
@@ -192,7 +195,7 @@ const Physics = {
     const by = ballY[ballIdx];
 
     for (let i = 0; i < MAX_PICKUPS; i++) {
-      if (!pickupActive[i]) continue;
+      if (!pickupActive[i] || pickupFalling[i]) continue;
 
       const dx = bx - pickupX[i];
       const dy = by - pickupY[i];
@@ -217,11 +220,28 @@ const Physics = {
     }
   },
 
-  // Update block flash timers
+  // Update falling pickups (magnet effect)
+  updateFallingPickups(dt) {
+    for (let i = 0; i < MAX_PICKUPS; i++) {
+      if (!pickupActive[i] || !pickupFalling[i]) continue;
+      pickupVY[i] += 25 * dt; // gravity acceleration
+      pickupY[i] += pickupVY[i] * dt;
+      if (pickupY[i] > FIELD_HEIGHT + LAUNCH_AREA_HEIGHT + 1) {
+        pickupActive[i] = 0;
+        pickupFalling[i] = 0;
+      }
+    }
+  },
+
+  // Update block flash timers and rotation decay
   updateBlockFlash(dt) {
     for (let i = 0; i < MAX_BLOCKS; i++) {
       if (blockFlashTimer[i] > 0) {
         blockFlashTimer[i] = Math.max(0, blockFlashTimer[i] - dt);
+      }
+      if (blockRotation[i] !== 0) {
+        blockRotation[i] *= Math.max(0, 1 - dt * 12); // fast decay
+        if (Math.abs(blockRotation[i]) < 0.005) blockRotation[i] = 0;
       }
     }
   }

@@ -10,6 +10,7 @@ const blockCol = new Int32Array(MAX_BLOCKS);
 const blockType = new Uint8Array(MAX_BLOCKS);
 const blockArmor = new Uint8Array(MAX_BLOCKS);
 const blockMoveDir = new Int8Array(MAX_BLOCKS);
+const blockRotation = new Float32Array(MAX_BLOCKS);  // hit rotation swing (radians)
 
 // --- Parallel Arrays: Balls ---
 const ballX = new Float32Array(MAX_BALLS);
@@ -31,6 +32,8 @@ const pickupY = new Float32Array(MAX_PICKUPS);
 const pickupRow = new Int32Array(MAX_PICKUPS);
 const pickupCol = new Int32Array(MAX_PICKUPS);
 const pickupActive = new Uint8Array(MAX_PICKUPS);
+const pickupVY = new Float32Array(MAX_PICKUPS);     // falling velocity (magnet effect)
+const pickupFalling = new Uint8Array(MAX_PICKUPS);   // 1 = falling (magnet collected)
 
 // --- Parallel Arrays: Particles ---
 const partX = new Float32Array(MAX_PARTICLES);
@@ -130,5 +133,7 @@ function clearAllPools() {
   blockMoveDir.fill(0);
   ballActive.fill(0);
   pickupActive.fill(0);
+  pickupFalling.fill(0);
+  pickupVY.fill(0);
   partActive.fill(0);
 }

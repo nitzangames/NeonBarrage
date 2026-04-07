@@ -311,15 +311,31 @@ const Game = {
       // Menu states don't need per-frame update here
     }
 
-    // Always update particles and flash
+    // Always update particles, flash, and falling pickups
     Physics.updateParticles(dt);
     Physics.updateBlockFlash(dt);
+    Physics.updateFallingPickups(dt);
+  },
+
+  // Check if pointer is in the powerup bar area
+  isInPowerupBar(py) {
+    const barH = canvasH * 0.06;
+    const barY = canvasH - barH - canvasH * 0.01;
+    return py >= barY;
   },
 
   updateAiming(dt) {
     // Check powerup bar taps
     if (Input.tapped) {
-      this.checkPowerupTap();
+      if (this.isInPowerupBar(Input.tapY)) {
+        this.checkPowerupTap();
+        return; // Don't process aim this frame
+      }
+    }
+
+    // Don't aim if dragging from the powerup bar
+    if (Input.isDown && this.isInPowerupBar(Input.pointerY)) {
+      return;
     }
 
     const wasAiming = Input.isAiming;
@@ -373,8 +389,10 @@ const Game = {
     } else if (type === PW_MAGNET) {
       powerupInventory[type]--;
       for (let i = 0; i < MAX_PICKUPS; i++) {
-        if (pickupActive[i]) {
-          pickupActive[i] = 0;
+        if (pickupActive[i] && !pickupFalling[i]) {
+          pickupFalling[i] = 1;
+          pickupVY[i] = 0;
+          // Award balls immediately
           this.ballCount += PICKUP_BALL_BONUS;
           this.pickupsCollected++;
         }

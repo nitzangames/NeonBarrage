@@ -4,6 +4,28 @@ const ctx = canvas.getContext('2d');
 // --- Canvas Sizing ---
 let canvasW, canvasH, scale, fieldRect;
 
+// --- Screen Shake ---
+let shakeTimer = 0;
+let shakeMagnitude = 0;
+let shakeOffsetX = 0;
+let shakeOffsetY = 0;
+
+function triggerShake(duration, magnitude) {
+  shakeTimer = duration;
+  shakeMagnitude = magnitude;
+}
+
+function updateShake(dt) {
+  if (shakeTimer > 0) {
+    shakeTimer -= dt;
+    shakeOffsetX = (Math.random() - 0.5) * 2 * shakeMagnitude;
+    shakeOffsetY = (Math.random() - 0.5) * 2 * shakeMagnitude;
+  } else {
+    shakeOffsetX = 0;
+    shakeOffsetY = 0;
+  }
+}
+
 function resize() {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
@@ -76,7 +98,19 @@ function gameLoop(timestamp) {
   }
 
   Game.update(dt);
+  updateShake(dt);
+
+  // Apply shake offset during rendering
+  if (shakeOffsetX !== 0 || shakeOffsetY !== 0) {
+    ctx.save();
+    ctx.translate(shakeOffsetX, shakeOffsetY);
+  }
+
   Game.render();
+
+  if (shakeOffsetX !== 0 || shakeOffsetY !== 0) {
+    ctx.restore();
+  }
 
   requestAnimationFrame(gameLoop);
 }
