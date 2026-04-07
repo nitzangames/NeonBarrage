@@ -7,7 +7,10 @@ const STATE = {
   FLIGHT: 4,
   TURN_END: 5,
   GAME_OVER: 6,
-  LEVEL_COMPLETE: 7
+  LEVEL_COMPLETE: 7,
+  SHOP: 8,
+  SETTINGS: 9,
+  CHEST_POPUP: 10
 };
 
 // --- Colors (RGB arrays for canvas) ---
@@ -147,6 +150,19 @@ const MISSION_SCORE = 2;
 const MISSION_COLLECT = 3;
 const MISSION_ONESHOT = 4;
 const MISSION_COUNT = 5;
+
+// --- Economy ---
+const COINS_PER_STAR = 10;
+const CONTINUE_COST = 50;
+const CHEST_THRESHOLD = 10;
+const CHEST_REWARD_COUNT = 3;
+
+// --- Powerup Packs ---
+const PACKS = [
+  { name: 'Ball Pack', cost: 300, items: [3,3,3,0,0,0] },
+  { name: 'Utility Pack', cost: 350, items: [0,0,0,3,3,3] },
+  { name: 'Everything Pack', cost: 500, items: [3,3,3,3,3,3] }
+];
 
 // --- Block HP → Color ---
 function blockColor(hp, type) {

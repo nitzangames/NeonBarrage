@@ -4,7 +4,10 @@ const saveData = {
   stars: new Array(TOTAL_LEVELS).fill(0),
   currentLevel: 0,
   bestScore: 0,
-  powerups: new Array(POWERUP_COUNT).fill(0)
+  powerups: new Array(POWERUP_COUNT).fill(0),
+  coins: 0,
+  chestStars: 0,
+  settings: { sound: true, music: true, haptics: true }
 };
 
 function saveProgress() {
@@ -32,6 +35,9 @@ function loadProgress() {
       if (data.powerups && data.powerups.length === POWERUP_COUNT) {
         saveData.powerups = data.powerups;
       }
+      if (typeof data.coins === 'number') saveData.coins = data.coins;
+      if (typeof data.chestStars === 'number') saveData.chestStars = data.chestStars;
+      if (data.settings) saveData.settings = data.settings;
     }
   } catch (e) {
     // Corrupt data — use defaults
