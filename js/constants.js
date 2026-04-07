@@ -95,8 +95,57 @@ const FONT_BODY = "'Rajdhani', sans-serif";
 // --- Launch Area ---
 const LAUNCH_AREA_HEIGHT = 1.5;
 
+// --- Block Types ---
+const BLOCK_NORMAL = 0;
+const BLOCK_EXPLOSIVE = 1;
+const BLOCK_STONE = 2;
+const BLOCK_MOVING = 3;
+
+const EXPLOSIVE_UNLOCK = 5;
+const STONE_UNLOCK = 10;
+const MOVING_UNLOCK = 15;
+
+const EXPLOSIVE_SPAWN_RATE = 0.12;
+const STONE_SPAWN_RATE = 0.06;
+const MOVING_SPAWN_RATE = 0.15;
+
+const STONE_ARMOR = 2;
+
+// --- Powerup Types ---
+const PW_LASER = 0;
+const PW_FIRE = 1;
+const PW_EXTRA = 2;
+const PW_MAGNET = 3;
+const PW_SHOCKWAVE = 4;
+const PW_SHRINK = 5;
+const POWERUP_COUNT = 6;
+
+const PW_EXTRA_BALLS = 25;
+
+const PW_COLORS = [
+  [26, 143, 255],   // Laser - blue
+  [255, 107, 53],   // Fire - orange
+  [15, 255, 149],   // Extra - green
+  [108, 60, 224],   // Magnet - purple
+  [255, 170, 0],    // Shockwave - yellow/gold
+  [0, 212, 255]     // Shrink - cyan
+];
+
+const PW_NAMES = ['LASER', 'FIRE', 'EXTRA', 'MAGNET', 'SHOCK', 'SHRINK'];
+
+// --- Mission Types ---
+const MISSION_SURVIVE = 0;
+const MISSION_DESTROY = 1;
+const MISSION_SCORE = 2;
+const MISSION_COLLECT = 3;
+const MISSION_ONESHOT = 4;
+const MISSION_COUNT = 5;
+
 // --- Block HP → Color ---
-function blockColor(hp) {
+function blockColor(hp, type) {
+  if (type === BLOCK_EXPLOSIVE) return [255, 80, 40];
+  if (type === BLOCK_STONE) return [140, 140, 160];
+  if (type === BLOCK_MOVING) return COL.gold;
   if (hp <= 15)  return COL.green;
   if (hp <= 50)  return COL.blue;
   if (hp <= 125) return COL.purple;

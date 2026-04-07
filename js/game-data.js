@@ -7,6 +7,9 @@ const blockActive = new Uint8Array(MAX_BLOCKS);
 const blockFlashTimer = new Float32Array(MAX_BLOCKS);
 const blockRow = new Int32Array(MAX_BLOCKS);
 const blockCol = new Int32Array(MAX_BLOCKS);
+const blockType = new Uint8Array(MAX_BLOCKS);
+const blockArmor = new Uint8Array(MAX_BLOCKS);
+const blockMoveDir = new Int8Array(MAX_BLOCKS);
 
 // --- Parallel Arrays: Balls ---
 const ballX = new Float32Array(MAX_BALLS);
@@ -41,8 +44,12 @@ const partG = new Uint8Array(MAX_PARTICLES);
 const partB = new Uint8Array(MAX_PARTICLES);
 const partActive = new Uint8Array(MAX_PARTICLES);
 
+// --- Powerup Inventory ---
+const powerupInventory = new Int32Array(POWERUP_COUNT);
+
 // --- Pool Helpers ---
-function activateBlock(col, row, hp) {
+function activateBlock(col, row, hp, type) {
+  type = type || BLOCK_NORMAL;
   for (let i = 0; i < MAX_BLOCKS; i++) {
     if (!blockActive[i]) {
       blockActive[i] = 1;
@@ -53,6 +60,9 @@ function activateBlock(col, row, hp) {
       blockHP[i] = hp;
       blockMaxHP[i] = hp;
       blockFlashTimer[i] = 0;
+      blockType[i] = type;
+      blockArmor[i] = type === BLOCK_STONE ? STONE_ARMOR : 0;
+      blockMoveDir[i] = type === BLOCK_MOVING ? (Math.random() < 0.5 ? -1 : 1) : 0;
       return i;
     }
   }
@@ -115,6 +125,9 @@ function spawnParticles(x, y, count, speed, life, r, g, b) {
 
 function clearAllPools() {
   blockActive.fill(0);
+  blockType.fill(0);
+  blockArmor.fill(0);
+  blockMoveDir.fill(0);
   ballActive.fill(0);
   pickupActive.fill(0);
   partActive.fill(0);
