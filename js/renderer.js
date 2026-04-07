@@ -29,7 +29,9 @@ const Renderer = {
     const ph = this.us(BLOCK_SIZE);
     const radius = this.us(0.1);
 
-    const color = blockColor(blockHP[i], blockType[i]);
+    const type = blockType[i];
+
+    const color = blockColor(blockHP[i], type);
 
     // Block fill
     ctx.beginPath();
@@ -51,6 +53,22 @@ const Renderer = {
       ctx.fill();
     }
 
+    // Type indicator (top-left corner)
+    const indSize = this.us(0.22);
+    ctx.font = `bold ${indSize}px ${FONT_BODY}`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    if (type === BLOCK_EXPLOSIVE) {
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.fillText('!', px + this.us(0.08), py + this.us(0.02));
+    } else if (type === BLOCK_STONE && blockArmor[i] > 0) {
+      ctx.fillStyle = 'rgba(200,200,220,0.9)';
+      ctx.fillText(blockArmor[i], px + this.us(0.06), py + this.us(0.02));
+    } else if (type === BLOCK_MOVING) {
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillText(blockMoveDir[i] > 0 ? '\u2192' : '\u2190', px + this.us(0.04), py + this.us(0.02));
+    }
+
     // HP text
     const hp = blockHP[i];
     const fontSize = hp >= 100 ? this.us(0.28) : this.us(0.35);
@@ -58,7 +76,7 @@ const Renderer = {
     ctx.fillStyle = color === COL.green ? rgb(COL.textDark) : rgb(COL.textWhite);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(hp, px + pw / 2, py + ph / 2);
+    ctx.fillText(hp, px + pw / 2, py + ph / 2 + this.us(0.05));
   },
 
   drawBlocks() {
@@ -107,6 +125,8 @@ const Renderer = {
     const py = this.uy(ballY[i]);
     const r = this.us(BALL_RADIUS);
 
+    const ballCol = this.ballColor || COL.green;
+
     // Trail
     ctx.lineCap = 'round';
     for (let t = 0; t < TRAIL_LENGTH - 1; t++) {
@@ -115,7 +135,7 @@ const Renderer = {
       ctx.beginPath();
       ctx.moveTo(this.ux(ballTrailX[i][t]), this.uy(ballTrailY[i][t]));
       ctx.lineTo(this.ux(ballTrailX[i][t + 1]), this.uy(ballTrailY[i][t + 1]));
-      ctx.strokeStyle = rgb(COL.green, alpha);
+      ctx.strokeStyle = rgb(ballCol, alpha);
       ctx.lineWidth = this.us(width);
       ctx.stroke();
     }
@@ -123,13 +143,13 @@ const Renderer = {
     // Ball glow
     ctx.beginPath();
     ctx.arc(px, py, r * 2, 0, Math.PI * 2);
-    ctx.fillStyle = rgb(COL.green, 0.2);
+    ctx.fillStyle = rgb(ballCol, 0.2);
     ctx.fill();
 
     // Ball
     ctx.beginPath();
     ctx.arc(px, py, r, 0, Math.PI * 2);
-    ctx.fillStyle = rgb(COL.green);
+    ctx.fillStyle = rgb(ballCol);
     ctx.fill();
   },
 
@@ -215,5 +235,53 @@ const Renderer = {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('×' + ballCount, px, py + this.us(0.5));
+  },
+
+  drawPowerupBar(activePowerup) {
+    const barH = canvasH * 0.06;
+    const barY = canvasH - barH - canvasH * 0.01;
+    const btnW = (canvasW * 0.88) / POWERUP_COUNT;
+    const gap = canvasW * 0.01;
+    const startX = (canvasW - (btnW * POWERUP_COUNT + gap * (POWERUP_COUNT - 1))) / 2;
+
+    for (let p = 0; p < POWERUP_COUNT; p++) {
+      const x = startX + p * (btnW + gap);
+      const count = powerupInventory[p];
+      const isActive = activePowerup === p;
+      const color = PW_COLORS[p];
+      const isEmpty = count <= 0;
+
+      ctx.beginPath();
+      ctx.roundRect(x, barY, btnW, barH, barH * 0.3);
+
+      if (isEmpty) {
+        ctx.fillStyle = rgb(COL.bgCard);
+        ctx.fill();
+        ctx.strokeStyle = rgb(COL.borderDim);
+      } else if (isActive) {
+        ctx.fillStyle = rgb(color, 0.3);
+        ctx.fill();
+        ctx.strokeStyle = rgb(color);
+      } else {
+        ctx.fillStyle = rgb(color, 0.12);
+        ctx.fill();
+        ctx.strokeStyle = rgb(color, 0.5);
+      }
+      ctx.lineWidth = isActive ? 2.5 : 1;
+      ctx.stroke();
+
+      const nameSize = barH * 0.28;
+      ctx.font = `bold ${nameSize}px ${FONT_BODY}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = isEmpty ? rgb(COL.textDim, 0.4) : rgb(color);
+      ctx.fillText(PW_NAMES[p], x + btnW / 2, barY + barH * 0.38);
+
+      ctx.font = `bold ${barH * 0.32}px ${FONT_BODY}`;
+      ctx.fillStyle = isEmpty ? rgb(COL.textDim, 0.3) : rgb(COL.textWhite);
+      ctx.fillText(count, x + btnW / 2, barY + barH * 0.72);
+    }
+
+    return { barY, barH, btnW, gap, startX };
   }
 };
