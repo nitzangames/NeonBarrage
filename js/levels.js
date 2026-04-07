@@ -7,10 +7,42 @@ function getLevelDifficulty(level) {
   return progression * multiplier;
 }
 
+function getMissionType(level) {
+  return level % MISSION_COUNT;
+}
+
 function getMissionTarget(level) {
-  // Phase 1: all levels use "Survive N Turns"
   const difficulty = getLevelDifficulty(level);
-  return Math.round(8 * difficulty);
+  switch (getMissionType(level)) {
+    case MISSION_SURVIVE:  return Math.round(8 * difficulty);
+    case MISSION_DESTROY:  return Math.round(15 * difficulty);
+    case MISSION_SCORE:    return Math.round(40 * difficulty);
+    case MISSION_COLLECT:  return Math.max(2, Math.round(3 * difficulty));
+    case MISSION_ONESHOT:  return Math.max(2, Math.round(2.5 * difficulty));
+    default: return Math.round(8 * difficulty);
+  }
+}
+
+function getMissionProgress(game) {
+  switch (getMissionType(game.level)) {
+    case MISSION_SURVIVE:  return game.turn;
+    case MISSION_DESTROY:  return game.blocksDestroyed;
+    case MISSION_SCORE:    return game.score;
+    case MISSION_COLLECT:  return game.pickupsCollected;
+    case MISSION_ONESHOT:  return game.bestTurnBlocks;
+    default: return game.turn;
+  }
+}
+
+function getMissionLabel(level) {
+  switch (getMissionType(level)) {
+    case MISSION_SURVIVE:  return 'Survive';
+    case MISSION_DESTROY:  return 'Destroy';
+    case MISSION_SCORE:    return 'Score';
+    case MISSION_COLLECT:  return 'Collect';
+    case MISSION_ONESHOT:  return 'One Shot';
+    default: return 'Survive';
+  }
 }
 
 function getBlockHP(turn) {
@@ -25,14 +57,19 @@ function calcStars(current, target) {
 }
 
 // --- Row Spawning ---
-function spawnRow(rowIndex, turn) {
+function rollBlockType(level) {
+  if (level >= MOVING_UNLOCK && Math.random() < MOVING_SPAWN_RATE) return BLOCK_MOVING;
+  if (level >= EXPLOSIVE_UNLOCK && Math.random() < EXPLOSIVE_SPAWN_RATE) return BLOCK_EXPLOSIVE;
+  if (level >= STONE_UNLOCK && Math.random() < STONE_SPAWN_RATE) return BLOCK_STONE;
+  return BLOCK_NORMAL;
+}
+
+function spawnRow(rowIndex, turn, level) {
   const hp = getBlockHP(turn);
   const blockCount = MIN_BLOCKS_PER_ROW + Math.floor(Math.random() * (MAX_BLOCKS_PER_ROW - MIN_BLOCKS_PER_ROW + 1));
 
-  // Pick which columns get blocks
   const cols = [];
   for (let c = 0; c < GRID_COLS; c++) cols.push(c);
-  // Shuffle and take blockCount
   for (let i = cols.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     const tmp = cols[i]; cols[i] = cols[j]; cols[j] = tmp;
@@ -40,16 +77,46 @@ function spawnRow(rowIndex, turn) {
   const blockCols = cols.slice(0, blockCount);
   const emptyCols = cols.slice(blockCount);
 
-  // Place blocks
   for (let c = 0; c < blockCount; c++) {
-    activateBlock(blockCols[c], rowIndex, hp);
+    const type = rollBlockType(level || 0);
+    activateBlock(blockCols[c], rowIndex, hp, type);
   }
 
-  // Place pickups in empty cells (15% chance each)
   for (let c = 0; c < emptyCols.length; c++) {
     if (Math.random() < PICKUP_SPAWN_CHANCE) {
       activatePickup(emptyCols[c], rowIndex);
     }
+  }
+}
+
+function moveMovingBlocks() {
+  for (let i = 0; i < MAX_BLOCKS; i++) {
+    if (!blockActive[i] || blockType[i] !== BLOCK_MOVING) continue;
+
+    const newCol = blockCol[i] + blockMoveDir[i];
+
+    // Check bounds
+    if (newCol < 0 || newCol >= GRID_COLS) {
+      blockMoveDir[i] = -blockMoveDir[i];
+      continue;
+    }
+
+    // Check if destination is occupied
+    let blocked = false;
+    for (let j = 0; j < MAX_BLOCKS; j++) {
+      if (j !== i && blockActive[j] && blockRow[j] === blockRow[i] && blockCol[j] === newCol) {
+        blocked = true;
+        break;
+      }
+    }
+
+    if (blocked) {
+      blockMoveDir[i] = -blockMoveDir[i];
+      continue;
+    }
+
+    blockCol[i] = newCol;
+    blockX[i] = newCol * CELL_SIZE + BLOCK_SPACING / 2;
   }
 }
 
