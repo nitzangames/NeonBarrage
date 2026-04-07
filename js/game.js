@@ -125,6 +125,7 @@ const LevelSelect = {
         if (Input.hitTestRect(x, y, cellW, cellH)) {
           Input.consumeTap();
           Input.consumeRelease();
+          Audio.buttonTap(); Audio.vibrateLight();
           Game.startLevel(i);
           ctx.restore();
           return;
@@ -172,6 +173,7 @@ const LevelSelect = {
       if (Input.hitTestRect(backX, backY, backW, backH)) {
         Input.consumeTap();
         Input.consumeRelease();
+        Audio.buttonTap(); Audio.vibrateLight();
         Game.state = STATE.MENU;
       }
     }
@@ -263,6 +265,7 @@ const Game = {
     spawnRow(0, this.turn, this.level);
 
     this.state = STATE.AIMING;
+    Audio.startMusic();
   },
 
   // --- Pause button hit test (checked before aim consumes input) ---
@@ -280,6 +283,7 @@ const Game = {
     if (Input.tapX >= pauseBtnX && Input.tapX <= pauseBtnX + pauseW &&
         Input.tapY >= pauseBtnY && Input.tapY <= pauseBtnY + pauseH) {
       Input.consumeTap();
+      Audio.stopMusic();
       this.state = STATE.MENU;
       return true;
     }
@@ -323,6 +327,9 @@ const Game = {
   },
 
   updateAiming(dt) {
+    Audio.init();
+    Audio.resume();
+
     // Check powerup bar taps
     if (Input.tapped) {
       if (this.isInPowerupBar(Input.tapY)) {
@@ -345,6 +352,7 @@ const Game = {
       this.ballsToLaunch = this.ballCount;
       this.launchTimer = 0;
       this.blocksThisTurn = 0;
+      Audio.ballLaunch();
       this.state = STATE.LAUNCHING;
       Input.isAiming = false;
     }
@@ -423,6 +431,7 @@ const Game = {
         }
       }
     }
+    Audio.powerupActivated(); Audio.vibrateMedium();
     syncPowerupsToSave();
     saveProgress();
   },
@@ -489,6 +498,9 @@ const Game = {
         this.completeMission();
       } else {
         this.state = STATE.GAME_OVER;
+        Audio.gameOver();
+        Audio.vibrateError();
+        Audio.stopMusic();
       }
       return;
     }
@@ -497,6 +509,7 @@ const Game = {
     spawnRow(0, this.turn, this.level);
     Physics.resetLastHit();
 
+    Audio.turnComplete();
     this.state = STATE.AIMING;
   },
 
@@ -526,6 +539,9 @@ const Game = {
     syncPowerupsToSave();
     saveProgress();
 
+    Audio.levelComplete();
+    Audio.vibrateSuccess();
+    Audio.stopMusic();
     this.state = STATE.LEVEL_COMPLETE;
   },
 
@@ -568,6 +584,7 @@ const Game = {
   renderMenu() {
     ctx.fillStyle = rgb(COL.bgDark);
     ctx.fillRect(0, 0, canvasW, canvasH);
+    Audio.stopMusic();
 
     // Coin display (top-left)
     ctx.font = `bold ${canvasW * 0.04}px ${FONT_BODY}`;
@@ -635,32 +652,39 @@ const Game = {
     }
 
     // Input handling
+    Audio.init();
+    Audio.resume();
     if (Input.tapped || Input.aimReleased) {
       if (Input.hitTestRect(btnX, playY, btnW, btnH)) {
         Input.consumeTap(); Input.consumeRelease();
+        Audio.buttonTap(); Audio.vibrateLight();
         this.startLevel(saveData.currentLevel);
         return;
       }
       if (Input.hitTestRect(btnX, lsY, btnW, btnH)) {
         Input.consumeTap(); Input.consumeRelease();
+        Audio.buttonTap(); Audio.vibrateLight();
         LevelSelect.scrollY = 0; LevelSelect.scrollVel = 0;
         this.state = STATE.LEVEL_SELECT;
         return;
       }
       if (Input.hitTestRect(btnX, shopY, btnW, btnH)) {
         Input.consumeTap(); Input.consumeRelease();
+        Audio.buttonTap(); Audio.vibrateLight();
         this.state = STATE.SHOP;
         return;
       }
       // Settings gear
       if (Input.hitTestRect(gearX, gearY, gearSize, gearSize)) {
         Input.consumeTap(); Input.consumeRelease();
+        Audio.buttonTap(); Audio.vibrateLight();
         this.state = STATE.SETTINGS;
         return;
       }
       // Star chest
       if (chestFull && Input.hitTestRect(canvasW / 2 - canvasW * 0.06, chestY - canvasW * 0.05, canvasW * 0.12, canvasW * 0.12)) {
         Input.consumeTap(); Input.consumeRelease();
+        Audio.buttonTap(); Audio.vibrateLight();
         this.openChest();
         return;
       }
@@ -670,6 +694,8 @@ const Game = {
   },
 
   openChest() {
+    Audio.chestOpen();
+    Audio.vibrateHeavy();
     this.chestRewards = [];
     for (let i = 0; i < CHEST_REWARD_COUNT; i++) {
       const type = Math.floor(Math.random() * POWERUP_COUNT);
@@ -837,6 +863,7 @@ const Game = {
       for (const btn of packBtns) {
         if (btn.canAfford && Input.hitTestRect(btn.btnX, btn.btnY, btn.btnW, btn.btnH)) {
           Input.consumeTap(); Input.consumeRelease();
+          Audio.buttonTap(); Audio.vibrateLight();
           const pack = PACKS[btn.packIdx];
           saveData.coins -= pack.cost;
           for (let i = 0; i < POWERUP_COUNT; i++) {
@@ -849,6 +876,7 @@ const Game = {
       }
       if (Input.hitTestRect(backX, backY, backW, backH)) {
         Input.consumeTap(); Input.consumeRelease();
+        Audio.buttonTap(); Audio.vibrateLight();
         this.state = STATE.MENU;
         return;
       }
@@ -890,6 +918,7 @@ const Game = {
         if (Input.tapX >= toggleX && Input.tapX <= toggleX + toggleW &&
             Input.tapY >= y && Input.tapY <= y + toggleH) {
           Input.consumeTap();
+          Audio.buttonTap(); Audio.vibrateLight();
           saveData.settings[toggles[t].key] = !saveData.settings[toggles[t].key];
           saveProgress();
         }
@@ -906,6 +935,7 @@ const Game = {
     if (Input.tapped || Input.aimReleased) {
       if (Input.hitTestRect(btnX, btnY, btnW, btnH)) {
         Input.consumeTap(); Input.consumeRelease();
+        Audio.buttonTap(); Audio.vibrateLight();
         this.state = STATE.MENU;
         return;
       }
@@ -973,6 +1003,7 @@ const Game = {
     if (Input.tapped || Input.aimReleased) {
       if (Input.hitTestRect(btnX, btnY, btnW, btnH)) {
         Input.consumeTap(); Input.consumeRelease();
+        Audio.buttonTap(); Audio.vibrateLight();
         this.state = STATE.MENU;
         return;
       }
@@ -1023,6 +1054,7 @@ const Game = {
       if (Input.tapped || Input.aimReleased) {
         if (Input.hitTestRect(contX, contY, contW, contH)) {
           Input.consumeTap(); Input.consumeRelease();
+          Audio.buttonTap(); Audio.vibrateLight();
           saveData.coins -= CONTINUE_COST;
           saveProgress();
           this.usedContinue = true;
@@ -1043,6 +1075,7 @@ const Game = {
       if (Input.hitTestRect(btnX, retryY, btnW, btnH)) {
         Input.consumeTap();
         Input.consumeRelease();
+        Audio.buttonTap(); Audio.vibrateLight();
         this.startLevel(this.level);
         return;
       }
@@ -1056,6 +1089,7 @@ const Game = {
       if (Input.hitTestRect(btnX, levelsY, btnW, btnH)) {
         Input.consumeTap();
         Input.consumeRelease();
+        Audio.buttonTap(); Audio.vibrateLight();
         Game.state = STATE.LEVEL_SELECT;
         LevelSelect.scrollY = 0;
         return;
@@ -1124,6 +1158,7 @@ const Game = {
         if (Input.hitTestRect(btnX, nextY, btnW, btnH)) {
           Input.consumeTap();
           Input.consumeRelease();
+          Audio.buttonTap(); Audio.vibrateLight();
           this.startLevel(this.level + 1);
           return;
         }
@@ -1138,6 +1173,7 @@ const Game = {
       if (Input.hitTestRect(btnX, retryY, btnW, btnH)) {
         Input.consumeTap();
         Input.consumeRelease();
+        Audio.buttonTap(); Audio.vibrateLight();
         this.startLevel(this.level);
         return;
       }
@@ -1151,6 +1187,7 @@ const Game = {
       if (Input.hitTestRect(btnX, menuY, btnW, btnH)) {
         Input.consumeTap();
         Input.consumeRelease();
+        Audio.buttonTap(); Audio.vibrateLight();
         this.state = STATE.MENU;
         return;
       }
