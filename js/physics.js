@@ -71,18 +71,19 @@ const Physics = {
   checkBlockCollisions(ballIdx, gameState) {
     const bx = ballX[ballIdx];
     const by = ballY[ballIdx];
+    const isLaser = gameState.activePowerup === PW_LASER;
+    const isFire = gameState.activePowerup === PW_FIRE;
+    const damage = isFire ? 2 : 1;
 
     for (let i = 0; i < MAX_BLOCKS; i++) {
       if (!blockActive[i]) continue;
       if (this.lastHitBlock[ballIdx] === i) continue;
 
-      // Block rect
       const rx = blockX[i];
       const ry = blockY[i];
       const rw = BLOCK_SIZE;
       const rh = BLOCK_SIZE;
 
-      // Closest point on rect to ball center
       const cx = Math.max(rx, Math.min(bx, rx + rw));
       const cy = Math.max(ry, Math.min(by, ry + rh));
 
@@ -91,48 +92,97 @@ const Physics = {
       const distSq = dx * dx + dy * dy;
 
       if (distSq < BALL_RADIUS * BALL_RADIUS) {
-        // Hit! Determine reflection direction
         this.lastHitBlock[ballIdx] = i;
 
-        // Overlap amounts
-        const overlapX = (BALL_RADIUS + rw / 2) - Math.abs(bx - (rx + rw / 2));
-        const overlapY = (BALL_RADIUS + rh / 2) - Math.abs(by - (ry + rh / 2));
+        // Stone block with armor: deflect straight down, reduce armor
+        if (blockType[i] === BLOCK_STONE && blockArmor[i] > 0) {
+          blockArmor[i]--;
+          blockFlashTimer[i] = BLOCK_FLASH_DURATION;
+          ballVX[ballIdx] = 0;
+          ballVY[ballIdx] = BALL_SPEED;
+          ballY[ballIdx] = ry + rh + BALL_RADIUS;
+          if (!isLaser) break;
+          continue;
+        }
 
-        if (overlapX < overlapY) {
-          ballVX[ballIdx] = -ballVX[ballIdx];
-          // Push out
-          if (bx < rx + rw / 2) ballX[ballIdx] = rx - BALL_RADIUS;
-          else ballX[ballIdx] = rx + rw + BALL_RADIUS;
-        } else {
-          ballVY[ballIdx] = -ballVY[ballIdx];
-          if (by < ry + rh / 2) ballY[ballIdx] = ry - BALL_RADIUS;
-          else ballY[ballIdx] = ry + rh + BALL_RADIUS;
+        // Reflection (skip for laser — laser pierces)
+        if (!isLaser) {
+          const overlapX = (BALL_RADIUS + rw / 2) - Math.abs(bx - (rx + rw / 2));
+          const overlapY = (BALL_RADIUS + rh / 2) - Math.abs(by - (ry + rh / 2));
+
+          if (overlapX < overlapY) {
+            ballVX[ballIdx] = -ballVX[ballIdx];
+            if (bx < rx + rw / 2) ballX[ballIdx] = rx - BALL_RADIUS;
+            else ballX[ballIdx] = rx + rw + BALL_RADIUS;
+          } else {
+            ballVY[ballIdx] = -ballVY[ballIdx];
+            if (by < ry + rh / 2) ballY[ballIdx] = ry - BALL_RADIUS;
+            else ballY[ballIdx] = ry + rh + BALL_RADIUS;
+          }
         }
 
         // Damage
-        blockHP[i]--;
+        blockHP[i] -= damage;
         blockFlashTimer[i] = BLOCK_FLASH_DURATION;
-        gameState.score++;
+        gameState.score += damage;
 
         if (blockHP[i] <= 0) {
-          // Destroy block
-          blockActive[i] = 0;
-          gameState.score++; // bonus for destroy
-          gameState.blocksDestroyed++;
-
-          // Spawn particles
-          const color = blockColor(blockMaxHP[i]);
-          spawnParticles(
-            blockX[i] + BLOCK_SIZE / 2,
-            blockY[i] + BLOCK_SIZE / 2,
-            DESTROY_PARTICLE_COUNT,
-            DESTROY_PARTICLE_SPEED,
-            DESTROY_PARTICLE_LIFE,
-            color[0], color[1], color[2]
-          );
+          this.destroyBlock(i, gameState);
         }
 
-        break; // One collision per sub-step per ball
+        if (!isLaser) break;
+      }
+    }
+  },
+
+  destroyBlock(i, gameState) {
+    blockActive[i] = 0;
+    gameState.score++;
+    gameState.blocksDestroyed++;
+    if (gameState.blocksThisTurn !== undefined) gameState.blocksThisTurn++;
+
+    const color = blockColor(blockMaxHP[i], blockType[i]);
+    spawnParticles(
+      blockX[i] + BLOCK_SIZE / 2,
+      blockY[i] + BLOCK_SIZE / 2,
+      DESTROY_PARTICLE_COUNT,
+      DESTROY_PARTICLE_SPEED,
+      DESTROY_PARTICLE_LIFE,
+      color[0], color[1], color[2]
+    );
+
+    if (blockType[i] === BLOCK_EXPLOSIVE) {
+      this.explodeAdjacent(i, gameState);
+    }
+  },
+
+  explodeAdjacent(srcIdx, gameState) {
+    const row = blockRow[srcIdx];
+    const col = blockCol[srcIdx];
+
+    for (let i = 0; i < MAX_BLOCKS; i++) {
+      if (!blockActive[i]) continue;
+      const dr = Math.abs(blockRow[i] - row);
+      const dc = Math.abs(blockCol[i] - col);
+      if (dr <= 1 && dc <= 1 && (dr + dc) > 0) {
+        blockActive[i] = 0;
+        gameState.score++;
+        gameState.blocksDestroyed++;
+        if (gameState.blocksThisTurn !== undefined) gameState.blocksThisTurn++;
+
+        const color = blockColor(blockMaxHP[i], blockType[i]);
+        spawnParticles(
+          blockX[i] + BLOCK_SIZE / 2,
+          blockY[i] + BLOCK_SIZE / 2,
+          DESTROY_PARTICLE_COUNT,
+          DESTROY_PARTICLE_SPEED,
+          DESTROY_PARTICLE_LIFE,
+          color[0], color[1], color[2]
+        );
+
+        if (blockType[i] === BLOCK_EXPLOSIVE) {
+          this.explodeAdjacent(i, gameState);
+        }
       }
     }
   },

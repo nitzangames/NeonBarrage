@@ -29,7 +29,7 @@ const Renderer = {
     const ph = this.us(BLOCK_SIZE);
     const radius = this.us(0.1);
 
-    const color = blockColor(blockHP[i]);
+    const color = blockColor(blockHP[i], blockType[i]);
 
     // Block fill
     ctx.beginPath();
