@@ -116,7 +116,8 @@ function moveMovingBlocks() {
     }
 
     blockCol[i] = newCol;
-    blockX[i] = newCol * CELL_SIZE + BLOCK_SPACING / 2;
+    blockTargetX[i] = newCol * CELL_SIZE + BLOCK_SPACING / 2;
+    // blockX will lerp toward blockTargetX in physics update
   }
 }
 

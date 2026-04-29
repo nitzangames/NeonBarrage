@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Neon Barrage — TEST BUILD (all levels unlocked)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Rajdhani:wght@700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0f0f1e; touch-action: none; }
+canvas { display: block; position: absolute; top: 0; left: 50%; transform: translateX(-50%); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<!-- Unlock all levels before any game code runs -->
+<script>
+// Patch: unlock all levels + give coins and powerups for testing
+window.__TEST_MODE = true;
+</script>
+<script src="../js/constants.js"></script>
+<script src="../js/game-data.js"></script>
+<script src="../js/storage.js"></script>
+<script>
+// After storage loads, override save data to unlock everything
+const _origLoad = loadProgress;
+loadProgress = function() {
+  _origLoad();
+  saveData.currentLevel = TOTAL_LEVELS - 1;
+  for (let i = 0; i < TOTAL_LEVELS; i++) {
+    if (saveData.stars[i] === 0) saveData.stars[i] = 1; // unlock all
+  }
+  saveData.coins = 9999;
+  for (let i = 0; i < POWERUP_COUNT; i++) {
+    powerupInventory[i] = 99;
+    saveData.powerups[i] = 99;
+  }
+};
+</script>
+<script src="../js/levels.js"></script>
+<script src="../js/physics.js"></script>
+<script src="../js/input.js"></script>
+<script src="../js/renderer.js"></script>
+<script src="../js/audio.js"></script>
+<script src="../js/game.js"></script>
+<script src="../js/main.js"></script>
+</body>
+</html>

@@ -4,7 +4,7 @@ const saveData = {
   stars: new Array(TOTAL_LEVELS).fill(0),
   currentLevel: 0,
   bestScore: 0,
-  powerups: new Array(POWERUP_COUNT).fill(0),
+  powerups: new Array(POWERUP_COUNT).fill(1),
   coins: 0,
   chestStars: 0,
   settings: { sound: true, music: true, haptics: true }

@@ -11,6 +11,7 @@ const blockType = new Uint8Array(MAX_BLOCKS);
 const blockArmor = new Uint8Array(MAX_BLOCKS);
 const blockMoveDir = new Int8Array(MAX_BLOCKS);
 const blockRotation = new Float32Array(MAX_BLOCKS);  // hit rotation swing (radians)
+const blockTargetX = new Float32Array(MAX_BLOCKS);   // smooth move target X
 
 // --- Parallel Arrays: Balls ---
 const ballX = new Float32Array(MAX_BALLS);
@@ -66,6 +67,7 @@ function activateBlock(col, row, hp, type) {
       blockType[i] = type;
       blockArmor[i] = type === BLOCK_STONE ? STONE_ARMOR : 0;
       blockMoveDir[i] = type === BLOCK_MOVING ? (Math.random() < 0.5 ? -1 : 1) : 0;
+      blockTargetX[i] = blockX[i];
       return i;
     }
   }

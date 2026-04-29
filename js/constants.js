@@ -95,6 +95,9 @@ const MAX_PARTICLES = 256;
 // --- Levels ---
 const TOTAL_LEVELS = 60;
 
+// --- Version ---
+const VERSION = 'v1.0.7';
+
 // --- Delta Time ---
 const MAX_DT = 0.033;
 

@@ -99,12 +99,20 @@ const Physics = {
       if (distSq < BALL_RADIUS * BALL_RADIUS) {
         this.lastHitBlock[ballIdx] = i;
 
-        // Stone block with armor: deflect straight down, reduce armor
-        if (blockType[i] === BLOCK_STONE && blockArmor[i] > 0) {
-          blockArmor[i]--;
+        // Stone block: always deflect ball straight down
+        if (blockType[i] === BLOCK_STONE) {
           blockFlashTimer[i] = BLOCK_FLASH_DURATION;
           Audio.ballHit();
           Audio.vibrateLight();
+          blockHP[i] -= damage;
+          gameState.score += damage;
+          blockRotation[i] = (Math.random() < 0.5 ? -1 : 1) * BLOCK_HIT_ROTATION;
+          triggerShake(SHAKE_HIT_DURATION, SHAKE_HIT_MAGNITUDE);
+          if (blockHP[i] <= 0) {
+            this.destroyBlock(i, gameState);
+            triggerShake(SHAKE_DESTROY_DURATION, SHAKE_DESTROY_MAGNITUDE);
+          }
+          // Send ball straight down
           ballVX[ballIdx] = 0;
           ballVY[ballIdx] = BALL_SPEED;
           ballY[ballIdx] = ry + rh + BALL_RADIUS;
@@ -246,15 +254,25 @@ const Physics = {
     }
   },
 
-  // Update block flash timers and rotation decay
+  // Update block flash timers, rotation decay, and smooth movement
   updateBlockFlash(dt) {
     for (let i = 0; i < MAX_BLOCKS; i++) {
+      if (!blockActive[i]) continue;
       if (blockFlashTimer[i] > 0) {
         blockFlashTimer[i] = Math.max(0, blockFlashTimer[i] - dt);
       }
       if (blockRotation[i] !== 0) {
-        blockRotation[i] *= Math.max(0, 1 - dt * 12); // fast decay
+        blockRotation[i] *= Math.max(0, 1 - dt * 12);
         if (Math.abs(blockRotation[i]) < 0.005) blockRotation[i] = 0;
+      }
+      // Smooth horizontal movement for moving blocks
+      if (blockType[i] === BLOCK_MOVING && blockX[i] !== blockTargetX[i]) {
+        const diff = blockTargetX[i] - blockX[i];
+        if (Math.abs(diff) < 0.01) {
+          blockX[i] = blockTargetX[i];
+        } else {
+          blockX[i] += diff * Math.min(1, dt * 8);
+        }
       }
     }
   }

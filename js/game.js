@@ -8,7 +8,7 @@ const LevelSelect = {
   lastTouchY: 0,
 
   handleScroll(e) {
-    this.scrollY += e.deltaY * 0.5;
+    this.scrollY += clientDeltaToLogicalY(e.deltaY) * 0.5;
     this.scrollVel = 0;
   },
 
@@ -651,6 +651,13 @@ const Game = {
       ctx.fillText('BEST: ' + saveData.bestScore, canvasW / 2, shopY + btnH * 1.8);
     }
 
+    // Version (bottom-left)
+    ctx.font = `bold ${canvasW * 0.025}px ${FONT_BODY}`;
+    ctx.fillStyle = rgb(COL.textDim, 0.4);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(VERSION, canvasW * 0.04, canvasH * 0.97);
+
     // Input handling
     Audio.init();
     Audio.resume();
@@ -945,7 +952,7 @@ const Game = {
     ctx.font = `bold ${canvasW * 0.025}px ${FONT_BODY}`;
     ctx.fillStyle = rgb(COL.textDim, 0.5);
     ctx.textAlign = 'center';
-    ctx.fillText('v1.0', canvasW / 2, canvasH * 0.92);
+    ctx.fillText(VERSION, canvasW / 2, canvasH * 0.92);
 
     if (Input.tapped) Input.consumeTap();
     if (Input.aimReleased) Input.consumeRelease();
@@ -1018,41 +1025,42 @@ const Game = {
     ctx.fillStyle = 'rgba(0,0,0,0.9)';
     ctx.fillRect(0, 0, canvasW, canvasH);
 
-    const centerY = canvasH * 0.35;
-
     // Title
     ctx.font = `bold ${canvasW * 0.1}px ${FONT_TITLE}`;
     ctx.fillStyle = rgb(COL.red);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('GAME OVER', canvasW / 2, centerY);
+    ctx.fillText('GAME OVER', canvasW / 2, canvasH * 0.2);
 
     // Subtitle
     ctx.font = `bold ${canvasW * 0.04}px ${FONT_BODY}`;
     ctx.fillStyle = rgb(COL.textDim);
-    ctx.fillText('Mission Failed', canvasW / 2, centerY + canvasH * 0.045);
+    ctx.fillText('Mission Failed', canvasW / 2, canvasH * 0.27);
 
     // Score
-    ctx.font = `bold ${canvasW * 0.05}px ${FONT_BODY}`;
+    ctx.font = `bold ${canvasW * 0.06}px ${FONT_BODY}`;
     ctx.fillStyle = rgb(COL.textWhite);
-    ctx.fillText('Score: ' + this.score, canvasW / 2, centerY + canvasH * 0.08);
+    ctx.fillText('Score: ' + this.score, canvasW / 2, canvasH * 0.36);
 
     // Turns survived
     ctx.font = `bold ${canvasW * 0.04}px ${FONT_BODY}`;
     ctx.fillStyle = rgb(COL.textDim);
-    ctx.fillText('Turns: ' + this.turn, canvasW / 2, centerY + canvasH * 0.14);
+    ctx.fillText('Turns: ' + this.turn, canvasW / 2, canvasH * 0.42);
+
+    // Buttons
+    const btnW = canvasW * 0.55;
+    const btnH = canvasH * 0.06;
+    const btnX = (canvasW - btnW) / 2;
+    const btnGap = btnH * 1.5;
+    const canContinue = saveData.coins >= CONTINUE_COST && !this.usedContinue;
 
     // Continue button (if affordable and not already used)
-    const canContinue = saveData.coins >= CONTINUE_COST && !this.usedContinue;
+    let nextBtnY = canvasH * 0.52;
     if (canContinue) {
-      const contW = canvasW * 0.55;
-      const contH = canvasH * 0.06;
-      const contX = (canvasW - contW) / 2;
-      const contY = canvasH * 0.5;
-      this.drawButton(`CONTINUE (${CONTINUE_COST} coins)`, contX, contY, contW, contH, COL.purple);
+      this.drawButton(`CONTINUE (${CONTINUE_COST} coins)`, btnX, nextBtnY, btnW, btnH, COL.gold);
 
       if (Input.tapped || Input.aimReleased) {
-        if (Input.hitTestRect(contX, contY, contW, contH)) {
+        if (Input.hitTestRect(btnX, nextBtnY, btnW, btnH)) {
           Input.consumeTap(); Input.consumeRelease();
           Audio.buttonTap(); Audio.vibrateLight();
           saveData.coins -= CONTINUE_COST;
@@ -1062,13 +1070,11 @@ const Game = {
           return;
         }
       }
+      nextBtnY += btnGap;
     }
 
     // Retry button
-    const btnW = canvasW * 0.55;
-    const btnH = canvasH * 0.065;
-    const btnX = (canvasW - btnW) / 2;
-    const retryY = canContinue ? canvasH * 0.6 : canvasH * 0.55;
+    const retryY = nextBtnY;
     this.drawButton('RETRY', btnX, retryY, btnW, btnH, COL.green);
 
     if (Input.tapped || Input.aimReleased) {
@@ -1082,7 +1088,7 @@ const Game = {
     }
 
     // Levels button
-    const levelsY = retryY + btnH * 1.6;
+    const levelsY = retryY + btnGap;
     this.drawButton('LEVELS', btnX, levelsY, btnW, btnH, COL.blue);
 
     if (Input.tapped || Input.aimReleased) {

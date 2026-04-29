@@ -2,7 +2,25 @@ const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 
 // --- Canvas Sizing ---
-let canvasW, canvasH, scale, fieldRect;
+// Fixed 1080×1920 logical resolution; CSS scales the canvas to fit the viewport.
+const canvasW = 1080;
+const canvasH = 1920;
+let scale, fieldRect;
+
+// Convert a clientX/Y from a pointer event to the canvas's logical pixel space.
+function clientToLogical(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (clientX - rect.left) * (canvasW / rect.width),
+    y: (clientY - rect.top) * (canvasH / rect.height)
+  };
+}
+
+// Scale a delta in CSS pixels (e.g. wheel/touch deltas) to logical pixels.
+function clientDeltaToLogicalY(dy) {
+  const rect = canvas.getBoundingClientRect();
+  return dy * (canvasH / rect.height);
+}
 
 // --- Screen Shake ---
 let shakeTimer = 0;
@@ -26,18 +44,7 @@ function updateShake(dt) {
   }
 }
 
-function resize() {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-
-  canvasW = Math.min(vw, Math.floor(vh * 9 / 16));
-  canvasH = vh;
-
-  canvas.width = canvasW;
-  canvas.height = canvasH;
-  canvas.style.width = canvasW + 'px';
-  canvas.style.height = canvasH + 'px';
-
+function layout() {
   const padding = canvasW * 0.04;
   scale = (canvasW - padding * 2) / FIELD_WIDTH;
 
@@ -50,8 +57,7 @@ function resize() {
   fieldRect = { x: fieldX, y: fieldY, w: fieldW, h: fieldH };
 }
 
-window.addEventListener('resize', resize);
-resize();
+layout();
 
 // --- Init ---
 loadProgress();
@@ -76,7 +82,7 @@ canvas.addEventListener('touchstart', (e) => {
 canvas.addEventListener('touchmove', (e) => {
   if (Game.state === STATE.LEVEL_SELECT && LevelSelect.isDragging) {
     const y = e.touches[0].clientY;
-    const dy = LevelSelect.lastTouchY - y;
+    const dy = clientDeltaToLogicalY(LevelSelect.lastTouchY - y);
     LevelSelect.scrollY += dy;
     LevelSelect.scrollVel = dy / 0.016;
     LevelSelect.lastTouchY = y;

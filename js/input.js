@@ -74,9 +74,9 @@ const Input = {
   },
 
   updatePointer(clientX, clientY) {
-    const rect = canvas.getBoundingClientRect();
-    this.pointerX = clientX - rect.left;
-    this.pointerY = clientY - rect.top;
+    const p = clientToLogical(clientX, clientY);
+    this.pointerX = p.x;
+    this.pointerY = p.y;
   },
 
   // Call each frame during AIMING state to update aim direction

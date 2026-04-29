@@ -47,7 +47,62 @@ const Renderer = {
     ctx.fillStyle = rgb(color);
     ctx.fill();
 
+    // Type-specific decorations (drawn before border/flash)
+    if (type === BLOCK_EXPLOSIVE) {
+      // Hazard stripes
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(px, py, pw, ph, radius);
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+      ctx.lineWidth = this.us(0.06);
+      const stripeGap = this.us(0.18);
+      for (let s = -pw; s < pw * 2; s += stripeGap) {
+        ctx.beginPath();
+        ctx.moveTo(px + s, py);
+        ctx.lineTo(px + s + pw, py + ph);
+        ctx.stroke();
+      }
+      ctx.restore();
+    } else if (type === BLOCK_STONE) {
+      // Chevron pattern pointing down
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(px, py, pw, ph, radius);
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+      ctx.lineWidth = this.us(0.025);
+      const chevGap = this.us(0.2);
+      for (let cy = py - chevGap; cy < py + ph + chevGap; cy += chevGap) {
+        ctx.beginPath();
+        ctx.moveTo(px, cy);
+        ctx.lineTo(px + pw / 2, cy + chevGap * 0.6);
+        ctx.lineTo(px + pw, cy);
+        ctx.stroke();
+      }
+      ctx.restore();
+    } else if (type === BLOCK_MOVING) {
+      // Side arrows ◄►
+      const arrSize = this.us(0.12);
+      const arrInset = this.us(0.1);
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      // Left arrow
+      ctx.beginPath();
+      ctx.moveTo(px + arrInset, py + ph / 2);
+      ctx.lineTo(px + arrInset + arrSize, py + ph / 2 - arrSize);
+      ctx.lineTo(px + arrInset + arrSize, py + ph / 2 + arrSize);
+      ctx.fill();
+      // Right arrow
+      ctx.beginPath();
+      ctx.moveTo(px + pw - arrInset, py + ph / 2);
+      ctx.lineTo(px + pw - arrInset - arrSize, py + ph / 2 - arrSize);
+      ctx.lineTo(px + pw - arrInset - arrSize, py + ph / 2 + arrSize);
+      ctx.fill();
+    }
+
     // Glow border
+    ctx.beginPath();
+    ctx.roundRect(px, py, pw, ph, radius);
     ctx.strokeStyle = rgb(color, 0.5);
     ctx.lineWidth = this.us(0.03);
     ctx.stroke();
@@ -61,22 +116,6 @@ const Renderer = {
       ctx.fill();
     }
 
-    // Type indicator (top-left corner)
-    const indSize = this.us(0.22);
-    ctx.font = `bold ${indSize}px ${FONT_BODY}`;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    if (type === BLOCK_EXPLOSIVE) {
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.fillText('!', px + this.us(0.08), py + this.us(0.02));
-    } else if (type === BLOCK_STONE && blockArmor[i] > 0) {
-      ctx.fillStyle = 'rgba(200,200,220,0.9)';
-      ctx.fillText(blockArmor[i], px + this.us(0.06), py + this.us(0.02));
-    } else if (type === BLOCK_MOVING) {
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.fillText(blockMoveDir[i] > 0 ? '\u2192' : '\u2190', px + this.us(0.04), py + this.us(0.02));
-    }
-
     // HP text
     const hp = blockHP[i];
     const fontSize = hp >= 100 ? this.us(0.28) : this.us(0.35);
@@ -84,7 +123,7 @@ const Renderer = {
     ctx.fillStyle = color === COL.green ? rgb(COL.textDark) : rgb(COL.textWhite);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(hp, px + pw / 2, py + ph / 2 + this.us(0.05));
+    ctx.fillText(hp, px + pw / 2, py + ph / 2);
 
     if (rot !== 0) ctx.restore();
   },
@@ -235,16 +274,53 @@ const Renderer = {
     ctx.stroke();
   },
 
-  // Ball count display at launch point
+  // Ball launcher — glowing circle with crosshair and count
   drawLaunchPoint(launchX, launchY, ballCount) {
     const px = this.ux(launchX);
     const py = this.uy(launchY);
+    const outerR = this.us(0.35);
+    const innerR = this.us(0.22);
+    const dotR = this.us(0.07);
+    const crossLen = this.us(0.18);
+    const crossGap = this.us(0.1);
 
-    ctx.font = `bold ${this.us(0.4)}px ${FONT_BODY}`;
+    // Outer glow
+    ctx.beginPath();
+    ctx.arc(px, py, outerR, 0, Math.PI * 2);
+    ctx.fillStyle = rgb(COL.green, 0.1);
+    ctx.fill();
+
+    // Ring
+    ctx.beginPath();
+    ctx.arc(px, py, innerR, 0, Math.PI * 2);
+    ctx.strokeStyle = rgb(COL.green, 0.7);
+    ctx.lineWidth = this.us(0.03);
+    ctx.stroke();
+
+    // Center dot
+    ctx.beginPath();
+    ctx.arc(px, py, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = rgb(COL.green);
+    ctx.fill();
+
+    // Crosshair lines
+    ctx.strokeStyle = rgb(COL.green, 0.4);
+    ctx.lineWidth = this.us(0.02);
+    // Left
+    ctx.beginPath(); ctx.moveTo(px - crossLen, py); ctx.lineTo(px - crossGap, py); ctx.stroke();
+    // Right
+    ctx.beginPath(); ctx.moveTo(px + crossGap, py); ctx.lineTo(px + crossLen, py); ctx.stroke();
+    // Up
+    ctx.beginPath(); ctx.moveTo(px, py - crossLen); ctx.lineTo(px, py - crossGap); ctx.stroke();
+    // Down
+    ctx.beginPath(); ctx.moveTo(px, py + crossGap); ctx.lineTo(px, py + crossLen); ctx.stroke();
+
+    // Ball count
+    ctx.font = `bold ${this.us(0.35)}px ${FONT_BODY}`;
     ctx.fillStyle = rgb(COL.green);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('×' + ballCount, px, py + this.us(0.5));
+    ctx.fillText('×' + ballCount, px, py + this.us(0.55));
   },
 
   drawToggle(x, y, w, h, isOn, label) {

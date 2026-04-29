@@ -1,0 +1,12 @@
+.git/*
+.superpowers/*
+.DS_Store
+test/*
+thumb_A.png
+thumb_B.png
+thumb_C.png
+gen-thumbnails.js
+gen-thumbnail.js
+docs/*
+CLAUDE.md
+.zipignore
